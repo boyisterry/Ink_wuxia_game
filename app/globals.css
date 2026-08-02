@@ -22,3 +22,392 @@
 @media(max-width:1050px){.game-shell{padding:0}.game-frame{height:100svh;min-height:620px;border:0}.hud{padding-left:92px;gap:12px}.brand-mark{left:16px;transform:scale(.82) rotate(-2deg);transform-origin:left top}.vitals{min-width:255px}.portrait{width:58px;height:58px}.bars{width:195px}.resources div{min-width:66px;padding:7px}.quest-card{min-width:230px}.quest-card strong{font-size:13px}.seal-row{display:none}}
 @media(max-width:760px){.game-frame{grid-template-rows:78px minmax(0,1fr) 76px}.hud{padding:7px 10px 7px 69px}.brand-mark{left:8px;top:9px;transform:scale(.65) rotate(-2deg)}.portrait{width:48px;height:48px;border-width:3px}.vitals{min-width:175px}.bars{width:145px;gap:3px}.bar{height:19px}.bar b{line-height:19px;font-size:9px}.resources,.sound-button{display:none}.quest-card{min-width:0;margin-left:auto;padding:5px 8px;outline-offset:1px}.quest-card small{display:none}.quest-card strong{max-width:145px;font-size:11px;line-height:1.25}.player{width:230px}.enemy{width:230px;right:-2%}.stage-caption{display:none}.keyboard-guide,.desktop-controls,.control-strip p{display:none}.intro-overlay h1{font-size:58px}.intro-overlay>p:not(.eyebrow){max-width:280px;font-size:13px;line-height:1.7}.start-button{min-width:270px;min-height:68px;font-size:25px}.control-strip{padding:8px 12px;justify-content:center}.touch-controls{display:flex;width:100%;justify-content:space-between}.touch-controls button{width:22%;min-width:54px}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important}}
+/* Player action system: one illustration, animated as layered ink cutout. */
+.player {
+  --face: 1;
+  transition:
+    filter 0.15s,
+    bottom 0.025s linear;
+  transform: translateX(-50%);
+  transform-origin: 50% 86%;
+}
+.player.facing-left {
+  --face: -1;
+}
+.actor-visual {
+  position: absolute;
+  inset: 0;
+  transform: scaleX(var(--face));
+  transform-origin: 50% 82%;
+  transition: transform 0.12s ease-out;
+}
+.actor-visual img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  filter: drop-shadow(0 16px 4px #0005);
+  transform-origin: 48% 78%;
+}
+.player.idle .actor-visual img {
+  animation: player-breathe 2.6s ease-in-out infinite;
+}
+@keyframes player-breathe {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-4px) scale(1.008, 0.992);
+  }
+}
+.player.running .actor-visual img {
+  animation: player-run 0.34s ease-in-out infinite;
+}
+@keyframes player-run {
+  0%,
+  100% {
+    transform: translate(-2px, 1px) rotate(-1.8deg);
+  }
+  50% {
+    transform: translate(5px, -7px) rotate(2.2deg);
+  }
+}
+.player.running:after {
+  content: "";
+  position: absolute;
+  left: 23%;
+  bottom: 14%;
+  width: 34%;
+  height: 9%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, #18151187 0 20%, transparent 67%);
+  filter: blur(3px);
+  animation: run-ink 0.34s ease-out infinite;
+}
+@keyframes run-ink {
+  from {
+    opacity: 0.8;
+    transform: scale(0.5) translateX(20px);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.5) translateX(-20px);
+  }
+}
+.player.jumping .actor-visual img {
+  animation: player-jump 0.28s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+}
+@keyframes player-jump {
+  from {
+    transform: scale(1.08, 0.88) translateY(8px);
+  }
+  to {
+    transform: scale(0.94, 1.08) translateY(-7px) rotate(-2deg);
+  }
+}
+.player.falling .actor-visual img {
+  animation: player-fall 0.45s ease-in-out infinite alternate;
+}
+@keyframes player-fall {
+  from {
+    transform: translateY(-5px) rotate(2deg) scale(0.98, 1.04);
+  }
+  to {
+    transform: translateY(4px) rotate(-3deg) scale(1.04, 0.96);
+  }
+}
+.player.landing {
+  animation: landing-body 0.28s ease-out;
+}
+@keyframes landing-body {
+  0% {
+    transform: translateX(-50%) scale(1, 1);
+  }
+  35% {
+    transform: translateX(-50%) scale(1.1, 0.86);
+  }
+  100% {
+    transform: translateX(-50%) scale(1);
+  }
+}
+.landing-ink {
+  position: absolute;
+  left: 30%;
+  bottom: 8%;
+  width: 42%;
+  height: 8%;
+  opacity: 0;
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse,
+    #17130fc9 0 12%,
+    #17130f69 30%,
+    transparent 70%
+  );
+  filter: blur(2px);
+}
+.player.landing .landing-ink {
+  animation: landing-ink 0.3s ease-out;
+}
+@keyframes landing-ink {
+  0% {
+    opacity: 0.8;
+    transform: scale(0.3);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(2.4, 0.7);
+  }
+}
+.player.rolling {
+  z-index: 8;
+  animation: roll-body 0.43s cubic-bezier(0.28, 0.72, 0.25, 1);
+}
+.player.rolling .actor-visual img {
+  animation: roll-cutout 0.43s cubic-bezier(0.3, 0.75, 0.35, 1);
+}
+@keyframes roll-body {
+  0% {
+    transform: translateX(-50%) translateY(0);
+  }
+  45% {
+    transform: translateX(-50%) translateY(12px);
+  }
+  100% {
+    transform: translateX(-50%) translateY(0);
+  }
+}
+@keyframes roll-cutout {
+  0% {
+    transform: rotate(0) scale(1);
+  }
+  45% {
+    transform: rotate(180deg) scale(0.82);
+  }
+  100% {
+    transform: rotate(360deg) scale(1);
+  }
+}
+.roll-echo {
+  position: absolute;
+  inset: 5% 3%;
+  z-index: -1;
+  opacity: 0;
+  background: url("/assets/player.png") center/contain no-repeat;
+  filter: contrast(1.8) brightness(0.3) blur(2px);
+  transform: scaleX(var(--face));
+}
+.player.rolling .roll-echo.one {
+  animation: roll-echo 0.43s ease-out;
+}
+.player.rolling .roll-echo.two {
+  animation: roll-echo 0.43s 0.07s ease-out;
+}
+@keyframes roll-echo {
+  0% {
+    opacity: 0.34;
+    transform: scaleX(var(--face)) translateX(-3%);
+  }
+  100% {
+    opacity: 0;
+    transform: scaleX(var(--face)) translateX(-42%) scale(0.8);
+  }
+}
+.player.attacking .actor-visual img {
+  animation: sword-lunge 0.36s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+.player.combo-2 .actor-visual img {
+  animation: cross-cut 0.36s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+.player.combo-3 .actor-visual img {
+  animation: heavy-cut 0.48s cubic-bezier(0.16, 0.75, 0.22, 1);
+}
+@keyframes cross-cut {
+  0% {
+    transform: translateX(-5%) rotate(3deg);
+  }
+  48% {
+    transform: translateX(13%) rotate(-5deg) scale(1.07);
+  }
+  100% {
+    transform: none;
+  }
+}
+@keyframes heavy-cut {
+  0%,
+  20% {
+    transform: translate(-6%, -7%) rotate(-7deg) scale(0.98);
+  }
+  65% {
+    transform: translate(17%, 4%) rotate(5deg) scale(1.1);
+  }
+  100% {
+    transform: none;
+  }
+}
+.slash {
+  pointer-events: none;
+  position: absolute;
+  left: 62%;
+  top: 6%;
+  width: 64%;
+  height: 88%;
+  opacity: 0;
+  border-top: 8px solid #eee8da;
+  border-right: 3px solid #111;
+  border-radius: 50%;
+  transform: rotate(26deg);
+  filter: drop-shadow(0 0 2px #111);
+}
+.attacking .slash.primary {
+  animation: slash 0.36s ease-out;
+}
+.combo-2 .slash.primary {
+  animation: slash-cross 0.36s ease-out;
+}
+.combo-3 .slash.primary {
+  border-top-width: 13px;
+  animation: slash-heavy 0.48s ease-out;
+}
+.combo-3 .slash.echo {
+  display: block;
+  border-top: 4px solid #a32920;
+  filter: blur(1px);
+  animation: slash-heavy 0.48s 0.04s ease-out;
+}
+@keyframes slash-cross {
+  15% {
+    opacity: 0;
+    transform: rotate(70deg) scale(0.45);
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(-38deg) scale(1.3);
+  }
+}
+@keyframes slash-heavy {
+  20% {
+    opacity: 0;
+    transform: rotate(-45deg) scale(0.5);
+  }
+  55% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(60deg) scale(1.55);
+  }
+}
+.action-label {
+  position: absolute;
+  left: 50%;
+  bottom: 1%;
+  z-index: 3;
+  min-width: 50px;
+  padding: 2px 7px;
+  opacity: 0.68;
+  transform: translateX(-50%);
+  color: #f6f0e4;
+  background: #17130fd9;
+  border-left: 2px solid var(--red);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-align: center;
+  white-space: nowrap;
+  transition: opacity 0.15s;
+}
+.player.idle .action-label {
+  opacity: 0.35;
+}
+.player.damaged {
+  animation: player-damage 0.22s linear 2;
+  filter: sepia(1) saturate(5) drop-shadow(0 0 18px var(--red));
+}
+@keyframes player-damage {
+  0%,
+  100% {
+    margin-left: 0;
+  }
+  35% {
+    margin-left: -10px;
+  }
+  70% {
+    margin-left: 8px;
+  }
+}
+.enemy.winding-up img {
+  animation: enemy-windup 0.36s ease-in both;
+  filter: contrast(1.35) sepia(0.7) saturate(2.4) drop-shadow(0 0 16px #8e1612);
+}
+@keyframes enemy-windup {
+  from {
+    transform: translateX(0) scale(1);
+  }
+  to {
+    transform: translateX(-12px) scale(1.07);
+  }
+}
+.enemy.winding-up:after {
+  content: "危";
+  position: absolute;
+  left: 46%;
+  top: -44px;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: var(--red);
+  border: 2px solid #fff7;
+  font-size: 15px;
+  font-weight: 800;
+  animation: danger-pulse 0.36s ease-in-out infinite alternate;
+}
+@keyframes danger-pulse {
+  to {
+    transform: scale(1.18);
+    filter: drop-shadow(0 0 8px var(--red));
+  }
+}
+.roll-touch {
+  border-color: #bbb2a3 !important;
+  background: #3b3831 !important;
+}
+@media (max-width: 1250px) {
+  .desktop-controls {
+    gap: 12px;
+  }
+  .control-strip p {
+    display: none;
+  }
+}
+@media (max-width: 760px) {
+  .touch-controls {
+    gap: 5px;
+  }
+  .touch-controls button {
+    width: 19%;
+    min-width: 46px;
+  }
+  .action-label {
+    bottom: 0;
+    font-size: 9px;
+  }
+  .player.running:after {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .action-label {
+    opacity: 0.8;
+  }
+  .enemy.winding-up:after {
+    animation: none;
+  }
+}

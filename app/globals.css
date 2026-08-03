@@ -1301,3 +1301,77 @@ kbd {
     background-position: 100% 0;
   }
 }
+
+/* Video-derived jump phases follow the physics state: rise, fall, then land. */
+.jump-sprite {
+  position: absolute;
+  inset: 0;
+  display: block;
+  opacity: 0;
+  background-repeat: no-repeat;
+  background-position: 0 0;
+  background-size: auto 100%;
+  pointer-events: none;
+}
+.player.jumping .actor-visual img,
+.player.falling .actor-visual img,
+.player.landing .actor-visual img {
+  opacity: 0;
+  animation: none;
+}
+.player.jumping .jump-sprite,
+.player.falling .jump-sprite,
+.player.landing .jump-sprite {
+  opacity: 1;
+}
+.player.jumping .jump-sprite {
+  background-image: url("/assets/player-jump-rise.webp");
+  background-size: 1500% 100%;
+  animation: player-jump-rise-sprite 0.32s steps(14, end) 1 both;
+}
+.player.falling .jump-sprite {
+  background-image: url("/assets/player-jump-fall.webp");
+  background-size: 600% 100%;
+  animation: player-jump-fall-sprite 0.28s steps(5, end) 1 both;
+}
+.player.landing .jump-sprite {
+  background-image: url("/assets/player-jump-land.webp");
+  background-size: 1000% 100%;
+  animation: player-jump-land-sprite 0.32s steps(9, end) 1 both;
+}
+.player.jumping .run-sprite,
+.player.falling .run-sprite,
+.player.landing .run-sprite,
+.player.landing .attack-sprite {
+  opacity: 0;
+}
+.player.landing {
+  animation: none;
+}
+.player.landing .landing-ink {
+  display: none;
+}
+@keyframes player-jump-rise-sprite {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 100% 0;
+  }
+}
+@keyframes player-jump-fall-sprite {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 100% 0;
+  }
+}
+@keyframes player-jump-land-sprite {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 100% 0;
+  }
+}

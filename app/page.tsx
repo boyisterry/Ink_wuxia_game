@@ -40,6 +40,7 @@ export default function Home() {
   const rollingRef = useRef(false);
   const rollDirection = useRef(1);
   const attackRef = useRef(false);
+  const landingRef = useRef(false);
   const attackPendingRef = useRef(false);
   const currentAttackStep = useRef(0);
   const comboQueuedRef = useRef(false);
@@ -68,6 +69,7 @@ export default function Home() {
     facingRef.current = "right";
     rollingRef.current = false;
     attackRef.current = false;
+    landingRef.current = false;
     attackPendingRef.current = false;
     currentAttackStep.current = 0;
     comboQueuedRef.current = false;
@@ -102,6 +104,7 @@ export default function Home() {
       phaseRef.current !== "playing" ||
       yRef.current > 1 ||
       rollingRef.current ||
+      landingRef.current ||
       attackPendingRef.current ||
       attackRef.current
     )
@@ -115,6 +118,7 @@ export default function Home() {
       phaseRef.current !== "playing" ||
       yRef.current > 1 ||
       rollingRef.current ||
+      landingRef.current ||
       attackPendingRef.current ||
       attackRef.current
     )
@@ -130,7 +134,12 @@ export default function Home() {
   }, [later]);
 
   const beginAttack = useCallback(() => {
-    if (phaseRef.current !== "playing" || rollingRef.current) return;
+    if (
+      phaseRef.current !== "playing" ||
+      rollingRef.current ||
+      landingRef.current
+    )
+      return;
 
     const token = ++attackToken.current;
     attackPendingRef.current = false;
@@ -183,7 +192,12 @@ export default function Home() {
   }, [later]);
 
   const attack = useCallback(() => {
-    if (phaseRef.current !== "playing" || rollingRef.current) return;
+    if (
+      phaseRef.current !== "playing" ||
+      rollingRef.current ||
+      landingRef.current
+    )
+      return;
 
     if (attackRef.current || attackPendingRef.current) {
       if (currentAttackStep.current <= 1) comboQueuedRef.current = true;
@@ -257,6 +271,7 @@ export default function Home() {
           left !== right &&
           !attackRef.current &&
           !attackPendingRef.current &&
+          !landingRef.current &&
           !rollingRef.current;
 
         if (walking !== movingRef.current) {
@@ -307,8 +322,12 @@ export default function Home() {
             yRef.current = 0;
             velocity.current = 0;
             setAirState("grounded");
+            landingRef.current = true;
             setLanding(true);
-            later(() => setLanding(false), 300);
+            later(() => {
+              landingRef.current = false;
+              setLanding(false);
+            }, 320);
           }
           setY(yRef.current);
         }
@@ -374,13 +393,15 @@ export default function Home() {
         ? "踏墨"
         : airState === "falling"
           ? "落势"
-          : locomotion === "starting"
-            ? "起势"
-            : locomotion === "running"
-              ? "疾行"
-              : locomotion === "stopping"
-                ? "收势"
-                : "凝神";
+          : landing
+            ? "落定"
+            : locomotion === "starting"
+              ? "起势"
+              : locomotion === "running"
+                ? "疾行"
+                : locomotion === "stopping"
+                  ? "收势"
+                  : "凝神";
 
   return (
     <main className="game-shell">
@@ -463,6 +484,7 @@ export default function Home() {
               />
               <span className="run-sprite" aria-hidden="true" />
               <span className="attack-sprite" aria-hidden="true" />
+              <span className="jump-sprite" aria-hidden="true" />
               <span className="slash primary" />
               <span className="slash echo" />
             </div>

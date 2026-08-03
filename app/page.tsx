@@ -17,7 +17,6 @@ export default function Home() {
   const [hp, setHp] = useState(360);
   const [spirit, setSpirit] = useState(120);
   const [enemyHp, setEnemyHp] = useState(100);
-  const [moving, setMoving] = useState(false);
   const [locomotion, setLocomotion] = useState<Locomotion>("idle");
   const [facing, setFacing] = useState<Facing>("right");
   const [airState, setAirState] = useState<AirState>("grounded");
@@ -41,8 +40,10 @@ export default function Home() {
   const rollingRef = useRef(false);
   const rollDirection = useRef(1);
   const attackRef = useRef(false);
-  const comboRef = useRef(0);
-  const lastAttackAt = useRef(0);
+  const attackPendingRef = useRef(false);
+  const currentAttackStep = useRef(0);
+  const comboQueuedRef = useRef(false);
+  const attackToken = useRef(0);
   const timers = useRef<number[]>([]);
 
   const later = useCallback((fn: () => void, delay: number) => {
@@ -67,8 +68,10 @@ export default function Home() {
     facingRef.current = "right";
     rollingRef.current = false;
     attackRef.current = false;
-    comboRef.current = 0;
-    setMoving(false);
+    attackPendingRef.current = false;
+    currentAttackStep.current = 0;
+    comboQueuedRef.current = false;
+    attackToken.current += 1;
     setLocomotion("idle");
     setFacing("right");
     setAirState("grounded");
@@ -99,6 +102,7 @@ export default function Home() {
       phaseRef.current !== "playing" ||
       yRef.current > 1 ||
       rollingRef.current ||
+      attackPendingRef.current ||
       attackRef.current
     )
       return;
@@ -111,6 +115,7 @@ export default function Home() {
       phaseRef.current !== "playing" ||
       yRef.current > 1 ||
       rollingRef.current ||
+      attackPendingRef.current ||
       attackRef.current
     )
       return;
@@ -124,45 +129,83 @@ export default function Home() {
     }, 430);
   }, [later]);
 
-  const attack = useCallback(() => {
-    if (
-      phaseRef.current !== "playing" ||
-      attackRef.current ||
-      rollingRef.current
-    )
-      return;
+  const beginAttack = useCallback(() => {
+    if (phaseRef.current !== "playing" || rollingRef.current) return;
 
-    const now = performance.now();
-    comboRef.current =
-      now - lastAttackAt.current < 760 ? (comboRef.current % 3) + 1 : 1;
-    lastAttackAt.current = now;
-    const step = comboRef.current;
-    const duration = step === 3 ? 480 : 360;
+    const token = ++attackToken.current;
+    attackPendingRef.current = false;
     attackRef.current = true;
-    setAttackStep(step);
-    setSpirit((value) => Math.max(0, value - (step === 3 ? 8 : 4)));
+    currentAttackStep.current = 1;
+    setLocomotion("idle");
+    setAttackStep(1);
+    setSpirit((value) => Math.max(0, value - 4));
 
-    later(
-      () => {
-        const range = step === 3 ? 30 : 24;
-        if (Math.abs(xRef.current - 68) >= range || enemyRef.current <= 0)
-          return;
-        const damage = step === 3 ? 35 : step === 2 ? 25 : 20;
-        const next = Math.max(0, enemyRef.current - damage);
-        enemyRef.current = next;
-        setEnemyHp(next);
-        setEnemyHit(true);
-        later(() => setEnemyHit(false), 170);
-        if (next === 0) later(() => setPhase("victory"), 560);
-      },
-      step === 3 ? 230 : 155,
-    );
+    const dealDamage = (damage: number, range: number) => {
+      if (Math.abs(xRef.current - 68) >= range || enemyRef.current <= 0)
+        return;
+      const next = Math.max(0, enemyRef.current - damage);
+      enemyRef.current = next;
+      setEnemyHp(next);
+      setEnemyHit(true);
+      later(() => setEnemyHit(false), 170);
+      if (next === 0) later(() => setPhase("victory"), 560);
+    };
 
     later(() => {
-      attackRef.current = false;
-      setAttackStep(0);
-    }, duration);
+      if (token === attackToken.current) dealDamage(22, 24);
+    }, 300);
+
+    later(() => {
+      if (token !== attackToken.current) return;
+      if (comboQueuedRef.current) {
+        comboQueuedRef.current = false;
+        currentAttackStep.current = 2;
+        setAttackStep(2);
+        setSpirit((value) => Math.max(0, value - 4));
+        later(() => {
+          if (token === attackToken.current) dealDamage(28, 27);
+        }, 195);
+        later(() => {
+          if (token !== attackToken.current) return;
+          attackRef.current = false;
+          currentAttackStep.current = 0;
+          setAttackStep(0);
+        }, 440);
+      } else {
+        later(() => {
+          if (token !== attackToken.current) return;
+          attackRef.current = false;
+          currentAttackStep.current = 0;
+          setAttackStep(0);
+        }, 150);
+      }
+    }, 450);
   }, [later]);
+
+  const attack = useCallback(() => {
+    if (phaseRef.current !== "playing" || rollingRef.current) return;
+
+    if (attackRef.current || attackPendingRef.current) {
+      if (currentAttackStep.current <= 1) comboQueuedRef.current = true;
+      return;
+    }
+
+    comboQueuedRef.current = false;
+    if (movingRef.current || locomotion !== "idle") {
+      attackPendingRef.current = true;
+      movingRef.current = false;
+      const token = ++locomotionToken.current;
+      setLocomotion("stopping");
+      later(() => {
+        if (token !== locomotionToken.current || !attackPendingRef.current)
+          return;
+        beginAttack();
+      }, 460);
+      return;
+    }
+
+    beginAttack();
+  }, [beginAttack, later, locomotion]);
 
   useEffect(() => {
     const down = (event: KeyboardEvent) => {
@@ -211,11 +254,13 @@ export default function Home() {
         const left = keys.current.has("a") || keys.current.has("arrowleft");
         const right = keys.current.has("d") || keys.current.has("arrowright");
         const walking =
-          left !== right && !attackRef.current && !rollingRef.current;
+          left !== right &&
+          !attackRef.current &&
+          !attackPendingRef.current &&
+          !rollingRef.current;
 
         if (walking !== movingRef.current) {
           movingRef.current = walking;
-          setMoving(walking);
           const token = ++locomotionToken.current;
           if (walking) {
             setLocomotion("starting");
@@ -417,6 +462,7 @@ export default function Home() {
                 draggable={false}
               />
               <span className="run-sprite" aria-hidden="true" />
+              <span className="attack-sprite" aria-hidden="true" />
               <span className="slash primary" />
               <span className="slash echo" />
             </div>
@@ -499,10 +545,10 @@ export default function Home() {
               <kbd>K</kbd> / <kbd>SHIFT</kbd> 翻滚
             </span>
             <span>
-              <kbd>J</kbd> 三段连斩
+              <kbd>J</kbd> 二段连斩
             </span>
           </div>
-          <p>翻滚可闪避墨息，连续挥剑触发第三式重斩。</p>
+          <p>移动中攻击会先收步，连按两次可衔接第二式。</p>
           <div className="touch-controls" aria-label="触控操作">
             <button
               type="button"

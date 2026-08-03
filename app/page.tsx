@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 type Phase = "intro" | "playing" | "victory" | "defeat";
 type AirState = "grounded" | "rising" | "falling";
 type Facing = "left" | "right";
+type Locomotion = "idle" | "starting" | "running" | "stopping";
 
 const clamp = (n: number, min: number, max: number) =>
   Math.min(max, Math.max(min, n));
@@ -17,6 +18,7 @@ export default function Home() {
   const [spirit, setSpirit] = useState(120);
   const [enemyHp, setEnemyHp] = useState(100);
   const [moving, setMoving] = useState(false);
+  const [locomotion, setLocomotion] = useState<Locomotion>("idle");
   const [facing, setFacing] = useState<Facing>("right");
   const [airState, setAirState] = useState<AirState>("grounded");
   const [rolling, setRolling] = useState(false);
@@ -34,6 +36,7 @@ export default function Home() {
   const enemyRef = useRef(100);
   const phaseRef = useRef<Phase>("intro");
   const movingRef = useRef(false);
+  const locomotionToken = useRef(0);
   const facingRef = useRef<Facing>("right");
   const rollingRef = useRef(false);
   const rollDirection = useRef(1);
@@ -60,11 +63,13 @@ export default function Home() {
   const resetActions = useCallback(() => {
     keys.current.clear();
     movingRef.current = false;
+    locomotionToken.current += 1;
     facingRef.current = "right";
     rollingRef.current = false;
     attackRef.current = false;
     comboRef.current = 0;
     setMoving(false);
+    setLocomotion("idle");
     setFacing("right");
     setAirState("grounded");
     setRolling(false);
@@ -211,6 +216,20 @@ export default function Home() {
         if (walking !== movingRef.current) {
           movingRef.current = walking;
           setMoving(walking);
+          const token = ++locomotionToken.current;
+          if (walking) {
+            setLocomotion("starting");
+            later(() => {
+              if (token === locomotionToken.current && movingRef.current)
+                setLocomotion("running");
+            }, 420);
+          } else {
+            setLocomotion("stopping");
+            later(() => {
+              if (token === locomotionToken.current && !movingRef.current)
+                setLocomotion("idle");
+            }, 460);
+          }
         }
         if (walking) {
           const direction: Facing = right ? "right" : "left";
@@ -298,9 +317,7 @@ export default function Home() {
         ? "jumping"
         : airState === "falling"
           ? "falling"
-          : moving
-            ? "running"
-            : "idle";
+          : locomotion;
 
   const actionLabel = rolling
     ? "翻滚"
@@ -312,9 +329,13 @@ export default function Home() {
         ? "踏墨"
         : airState === "falling"
           ? "落势"
-          : moving
-            ? "疾行"
-            : "凝神";
+          : locomotion === "starting"
+            ? "起势"
+            : locomotion === "running"
+              ? "疾行"
+              : locomotion === "stopping"
+                ? "收势"
+                : "凝神";
 
   return (
     <main className="game-shell">
@@ -395,6 +416,7 @@ export default function Home() {
                 alt="持剑的墨境行者"
                 draggable={false}
               />
+              <span className="run-sprite" aria-hidden="true" />
               <span className="slash primary" />
               <span className="slash echo" />
             </div>

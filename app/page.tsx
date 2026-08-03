@@ -10,6 +10,10 @@ type Locomotion = "idle" | "starting" | "running" | "stopping";
 const clamp = (n: number, min: number, max: number) =>
   Math.min(max, Math.max(min, n));
 
+const ATTACK_DAMAGE = 22;
+const COMBO_DAMAGE = 28;
+const EXHAUSTED_DAMAGE_RATIO = 0.3;
+
 export default function Home() {
   const [phase, setPhase] = useState<Phase>("intro");
   const [x, setX] = useState(18);
@@ -32,6 +36,8 @@ export default function Home() {
   const xRef = useRef(18);
   const yRef = useRef(0);
   const velocity = useRef(0);
+  const hpRef = useRef(360);
+  const spiritRef = useRef(120);
   const enemyRef = useRef(100);
   const phaseRef = useRef<Phase>("intro");
   const movingRef = useRef(false);
@@ -45,10 +51,19 @@ export default function Home() {
   const currentAttackStep = useRef(0);
   const comboQueuedRef = useRef(false);
   const attackToken = useRef(0);
+  const enemyAttackingRef = useRef(false);
   const timers = useRef<number[]>([]);
 
+  const clearTimers = useCallback(() => {
+    timers.current.forEach((timer) => window.clearTimeout(timer));
+    timers.current = [];
+  }, []);
+
   const later = useCallback((fn: () => void, delay: number) => {
-    const timer = window.setTimeout(fn, delay);
+    const timer = window.setTimeout(() => {
+      timers.current = timers.current.filter((id) => id !== timer);
+      fn();
+    }, delay);
     timers.current.push(timer);
     return timer;
   }, []);
@@ -57,12 +72,10 @@ export default function Home() {
     phaseRef.current = phase;
   }, [phase]);
 
-  useEffect(
-    () => () => timers.current.forEach((timer) => window.clearTimeout(timer)),
-    [],
-  );
+  useEffect(() => () => clearTimers(), [clearTimers]);
 
   const resetActions = useCallback(() => {
+    clearTimers();
     keys.current.clear();
     movingRef.current = false;
     locomotionToken.current += 1;
@@ -74,6 +87,7 @@ export default function Home() {
     currentAttackStep.current = 0;
     comboQueuedRef.current = false;
     attackToken.current += 1;
+    enemyAttackingRef.current = false;
     setLocomotion("idle");
     setFacing("right");
     setAirState("grounded");
@@ -81,12 +95,41 @@ export default function Home() {
     setAttackStep(0);
     setLanding(false);
     setEnemyWindingUp(false);
+  }, [clearTimers]);
+
+  const spendSpirit = useCallback((cost: number) => {
+    const next = Math.max(0, spiritRef.current - cost);
+    spiritRef.current = next;
+    setSpirit(next);
   }, []);
+
+  const finishGame = useCallback(
+    (outcome: "victory" | "defeat", delay = 0) => {
+      if (phaseRef.current !== "playing") return;
+
+      phaseRef.current = outcome;
+      attackToken.current += 1;
+      locomotionToken.current += 1;
+      attackRef.current = false;
+      attackPendingRef.current = false;
+      comboQueuedRef.current = false;
+      movingRef.current = false;
+      enemyAttackingRef.current = false;
+      clearTimers();
+      setEnemyWindingUp(false);
+
+      if (delay > 0) later(() => setPhase(outcome), delay);
+      else setPhase(outcome);
+    },
+    [clearTimers, later],
+  );
 
   const start = useCallback(() => {
     xRef.current = 18;
     yRef.current = 0;
     velocity.current = 0;
+    hpRef.current = 360;
+    spiritRef.current = 120;
     enemyRef.current = 100;
     resetActions();
     setX(18);
@@ -120,18 +163,19 @@ export default function Home() {
       rollingRef.current ||
       landingRef.current ||
       attackPendingRef.current ||
-      attackRef.current
+      attackRef.current ||
+      spiritRef.current <= 0
     )
       return;
     rollingRef.current = true;
     rollDirection.current = facingRef.current === "right" ? 1 : -1;
     setRolling(true);
-    setSpirit((value) => Math.max(0, value - 8));
+    spendSpirit(8);
     later(() => {
       rollingRef.current = false;
       setRolling(false);
     }, 430);
-  }, [later]);
+  }, [later, spendSpirit]);
 
   const beginAttack = useCallback(() => {
     if (
@@ -141,38 +185,54 @@ export default function Home() {
     )
       return;
 
+    const exhausted = spiritRef.current <= 0;
     const token = ++attackToken.current;
     attackPendingRef.current = false;
     attackRef.current = true;
     currentAttackStep.current = 1;
+    comboQueuedRef.current = false;
     setLocomotion("idle");
     setAttackStep(1);
-    setSpirit((value) => Math.max(0, value - 4));
+    if (!exhausted) spendSpirit(4);
 
     const dealDamage = (damage: number, range: number) => {
-      if (Math.abs(xRef.current - 68) >= range || enemyRef.current <= 0)
+      if (
+        phaseRef.current !== "playing" ||
+        Math.abs(xRef.current - 68) >= range ||
+        enemyRef.current <= 0
+      )
         return;
       const next = Math.max(0, enemyRef.current - damage);
       enemyRef.current = next;
       setEnemyHp(next);
       setEnemyHit(true);
-      later(() => setEnemyHit(false), 170);
-      if (next === 0) later(() => setPhase("victory"), 560);
+      if (next === 0) {
+        finishGame("victory", 560);
+        later(() => setEnemyHit(false), 170);
+      } else {
+        later(() => setEnemyHit(false), 170);
+      }
     };
 
+    const firstDamage = exhausted
+      ? Math.max(1, Math.round(ATTACK_DAMAGE * EXHAUSTED_DAMAGE_RATIO))
+      : ATTACK_DAMAGE;
+
     later(() => {
-      if (token === attackToken.current) dealDamage(22, 24);
+      if (token === attackToken.current) dealDamage(firstDamage, 24);
     }, 300);
 
     later(() => {
       if (token !== attackToken.current) return;
-      if (comboQueuedRef.current) {
-        comboQueuedRef.current = false;
+      const canCombo =
+        !exhausted && comboQueuedRef.current && spiritRef.current > 0;
+      comboQueuedRef.current = false;
+      if (canCombo) {
         currentAttackStep.current = 2;
         setAttackStep(2);
-        setSpirit((value) => Math.max(0, value - 4));
+        spendSpirit(4);
         later(() => {
-          if (token === attackToken.current) dealDamage(28, 27);
+          if (token === attackToken.current) dealDamage(COMBO_DAMAGE, 27);
         }, 195);
         later(() => {
           if (token !== attackToken.current) return;
@@ -189,7 +249,7 @@ export default function Home() {
         }, 150);
       }
     }, 450);
-  }, [later]);
+  }, [finishGame, later, spendSpirit]);
 
   const attack = useCallback(() => {
     if (
@@ -200,7 +260,8 @@ export default function Home() {
       return;
 
     if (attackRef.current || attackPendingRef.current) {
-      if (currentAttackStep.current <= 1) comboQueuedRef.current = true;
+      if (currentAttackStep.current <= 1 && spiritRef.current > 0)
+        comboQueuedRef.current = true;
       return;
     }
 
@@ -342,31 +403,35 @@ export default function Home() {
     const timer = window.setInterval(() => {
       if (
         phaseRef.current !== "playing" ||
+        enemyAttackingRef.current ||
         Math.abs(xRef.current - 68) >= 13 ||
         enemyRef.current <= 0 ||
         rollingRef.current
       )
         return;
+      enemyAttackingRef.current = true;
       setEnemyWindingUp(true);
       later(() => {
         setEnemyWindingUp(false);
-        if (
-          phaseRef.current !== "playing" ||
-          rollingRef.current ||
-          Math.abs(xRef.current - 68) >= 16
-        )
-          return;
-        setHp((value) => {
-          const next = Math.max(0, value - 45);
+        const stillPlaying = phaseRef.current === "playing";
+        const inRange =
+          stillPlaying &&
+          enemyRef.current > 0 &&
+          !rollingRef.current &&
+          Math.abs(xRef.current - 68) < 16;
+        if (inRange) {
+          const next = Math.max(0, hpRef.current - 45);
+          hpRef.current = next;
+          setHp(next);
           setPlayerHit(true);
           later(() => setPlayerHit(false), 220);
-          if (next === 0) setPhase("defeat");
-          return next;
-        });
+          if (next === 0) finishGame("defeat");
+        }
+        enemyAttackingRef.current = false;
       }, 360);
     }, 1450);
     return () => window.clearInterval(timer);
-  }, [later]);
+  }, [finishGame, later]);
 
   const hold = (key: string, pressed: boolean) => {
     if (pressed) keys.current.add(key);
@@ -388,7 +453,9 @@ export default function Home() {
     : attackStep
       ? attackStep === 3
         ? "破墨重斩"
-        : `剑式 ${attackStep}`
+        : spirit <= 0
+          ? "轻击"
+          : `剑式 ${attackStep}`
       : airState === "rising"
         ? "踏墨"
         : airState === "falling"
@@ -570,7 +637,9 @@ export default function Home() {
               <kbd>J</kbd> 二段连斩
             </span>
           </div>
-          <p>移动中攻击会先收步，连按两次可衔接第二式。</p>
+          <p>
+            移动中攻击会先收步，连按两次可衔接第二式。灵力耗尽后无法翻滚，攻击仅剩轻击。
+          </p>
           <div className="touch-controls" aria-label="触控操作">
             <button
               type="button"

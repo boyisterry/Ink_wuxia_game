@@ -1215,8 +1215,8 @@ kbd {
 }
 .player.running .run-sprite {
   background-image: url("/assets/player-run-loop.webp");
-  background-size: 700% 100%;
-  animation: player-run-loop-sprite 0.48s steps(6, end) infinite;
+  background-size: 1300% 100%;
+  animation: player-run-loop-sprite 0.5s steps(12, end) infinite;
 }
 .player.stopping .run-sprite {
   background-image: url("/assets/player-run-stop.webp");

@@ -57,6 +57,9 @@ export default defineConfig(async () => {
       cloudflare({
         viteEnvironment: { name: "rsc", childEnvironments: ["ssr"] },
         inspectorPort: false,
+        // Avoid Miniflare persist under the project root (SMB mounts break
+        // workerd cache dirs and would otherwise write local state).
+        persistState: false,
         config: localBindingConfig,
       }),
     ],

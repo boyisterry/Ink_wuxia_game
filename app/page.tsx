@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 
 type Phase = "intro" | "playing" | "victory" | "defeat";
 type AirState = "grounded" | "rising" | "falling";
@@ -13,6 +13,22 @@ const clamp = (n: number, min: number, max: number) =>
 const ATTACK_DAMAGE = 22;
 const COMBO_DAMAGE = 28;
 const EXHAUSTED_DAMAGE_RATIO = 0.3;
+const ROLL_DURATION_MS = 620;
+const ROLL_MOVE_PER_FRAME = 0.76;
+const ACTION_ASSET_URLS = [
+  "/assets/player.png",
+  "/assets/player-run-start.webp",
+  "/assets/player-run-loop.webp",
+  "/assets/player-run-stop.webp",
+  "/assets/player-attack-2.webp",
+  "/assets/player-jump-rise.webp",
+  "/assets/player-jump-fall.webp",
+  "/assets/player-jump-land.webp",
+  "/assets/player-run-jump-rise.webp",
+  "/assets/player-run-jump-fall.webp",
+  "/assets/player-run-jump-land.webp",
+  "/assets/player-dash-roll.webp",
+] as const;
 
 export default function Home() {
   const [phase, setPhase] = useState<Phase>("intro");
@@ -24,6 +40,7 @@ export default function Home() {
   const [locomotion, setLocomotion] = useState<Locomotion>("idle");
   const [facing, setFacing] = useState<Facing>("right");
   const [airState, setAirState] = useState<AirState>("grounded");
+  const [runningJump, setRunningJump] = useState(false);
   const [rolling, setRolling] = useState(false);
   const [attackStep, setAttackStep] = useState(0);
   const [landing, setLanding] = useState(false);
@@ -31,6 +48,9 @@ export default function Home() {
   const [playerHit, setPlayerHit] = useState(false);
   const [enemyWindingUp, setEnemyWindingUp] = useState(false);
   const [muted, setMuted] = useState(false);
+  const [loadedActionAssets, setLoadedActionAssets] = useState(0);
+  const [actionAssetsReady, setActionAssetsReady] = useState(false);
+  const [actionAssetsFailed, setActionAssetsFailed] = useState(false);
 
   const keys = useRef(new Set<string>());
   const xRef = useRef(18);
@@ -43,6 +63,7 @@ export default function Home() {
   const movingRef = useRef(false);
   const locomotionToken = useRef(0);
   const facingRef = useRef<Facing>("right");
+  const runningJumpRef = useRef(false);
   const rollingRef = useRef(false);
   const rollDirection = useRef(1);
   const attackRef = useRef(false);
@@ -72,6 +93,40 @@ export default function Home() {
     phaseRef.current = phase;
   }, [phase]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const preload = (src: string) =>
+      new Promise<void>((resolve, reject) => {
+        const image = new Image();
+        image.decoding = "async";
+        image.onload = async () => {
+          try {
+            await image.decode();
+          } catch {
+            // Some Safari versions reject decode() after load even though the
+            // decoded image is already usable, so load remains authoritative.
+          }
+          if (!cancelled) setLoadedActionAssets((count) => count + 1);
+          resolve();
+        };
+        image.onerror = () => reject(new Error(`Failed to preload ${src}`));
+        image.src = src;
+      });
+
+    void Promise.all(ACTION_ASSET_URLS.map(preload))
+      .then(() => {
+        if (!cancelled) setActionAssetsReady(true);
+      })
+      .catch(() => {
+        if (!cancelled) setActionAssetsFailed(true);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   useEffect(() => () => clearTimers(), [clearTimers]);
 
   const resetActions = useCallback(() => {
@@ -80,6 +135,7 @@ export default function Home() {
     movingRef.current = false;
     locomotionToken.current += 1;
     facingRef.current = "right";
+    runningJumpRef.current = false;
     rollingRef.current = false;
     attackRef.current = false;
     landingRef.current = false;
@@ -91,6 +147,7 @@ export default function Home() {
     setLocomotion("idle");
     setFacing("right");
     setAirState("grounded");
+    setRunningJump(false);
     setRolling(false);
     setAttackStep(0);
     setLanding(false);
@@ -125,6 +182,7 @@ export default function Home() {
   );
 
   const start = useCallback(() => {
+    if (!actionAssetsReady) return;
     xRef.current = 18;
     yRef.current = 0;
     velocity.current = 0;
@@ -140,7 +198,7 @@ export default function Home() {
     setEnemyHit(false);
     setPlayerHit(false);
     setPhase("playing");
-  }, [resetActions]);
+  }, [actionAssetsReady, resetActions]);
 
   const jump = useCallback(() => {
     if (
@@ -152,6 +210,11 @@ export default function Home() {
       attackRef.current
     )
       return;
+    const left = keys.current.has("a") || keys.current.has("arrowleft");
+    const right = keys.current.has("d") || keys.current.has("arrowright");
+    const fromRun = movingRef.current || left !== right;
+    runningJumpRef.current = fromRun;
+    setRunningJump(fromRun);
     velocity.current = 18;
     setAirState("rising");
   }, []);
@@ -174,7 +237,14 @@ export default function Home() {
     later(() => {
       rollingRef.current = false;
       setRolling(false);
-    }, 430);
+      const left = keys.current.has("a") || keys.current.has("arrowleft");
+      const right = keys.current.has("d") || keys.current.has("arrowright");
+      if (left !== right) {
+        movingRef.current = true;
+        locomotionToken.current += 1;
+        setLocomotion("running");
+      }
+    }, ROLL_DURATION_MS);
   }, [later, spendSpirit]);
 
   const beginAttack = useCallback(() => {
@@ -368,7 +438,7 @@ export default function Home() {
 
         if (rollingRef.current) {
           xRef.current = clamp(
-            xRef.current + rollDirection.current * 1.08 * delta,
+            xRef.current + rollDirection.current * ROLL_MOVE_PER_FRAME * delta,
             6,
             82,
           );
@@ -388,6 +458,17 @@ export default function Home() {
             later(() => {
               landingRef.current = false;
               setLanding(false);
+              const left =
+                keys.current.has("a") || keys.current.has("arrowleft");
+              const right =
+                keys.current.has("d") || keys.current.has("arrowright");
+              if (runningJumpRef.current && left !== right) {
+                movingRef.current = true;
+                locomotionToken.current += 1;
+                setLocomotion("running");
+              }
+              runningJumpRef.current = false;
+              setRunningJump(false);
             }, 320);
           }
           setY(yRef.current);
@@ -540,8 +621,8 @@ export default function Home() {
             <i />
           </div>
           <div
-            className={`player facing-${facing} ${actionClass} ${landing ? "landing" : ""} ${playerHit ? "damaged" : ""}`}
-            style={{ left: `${x}%`, bottom: `calc(11% + ${y}px)` }}
+            className={`player facing-${facing} ${actionClass} ${runningJump ? "running-jump" : ""} ${landing ? "landing" : ""} ${playerHit ? "damaged" : ""}`}
+            style={{ left: `${x}%`, ["--air-y"]: `${y}px` } as CSSProperties}
           >
             <div className="actor-visual">
               <img
@@ -552,6 +633,7 @@ export default function Home() {
               <span className="run-sprite" aria-hidden="true" />
               <span className="attack-sprite" aria-hidden="true" />
               <span className="jump-sprite" aria-hidden="true" />
+              <span className="roll-sprite" aria-hidden="true" />
               <span className="slash primary" />
               <span className="slash echo" />
             </div>
@@ -579,9 +661,21 @@ export default function Home() {
               <p className="eyebrow">二维水墨横版 · 动作原型</p>
               <h1>战墨破境</h1>
               <p>腾跃、翻滚、连斩，在墨息落下之前破境。</p>
-              <button type="button" className="start-button" onClick={start}>
-                <span>进入墨境</span>
-                <small>ENTER</small>
+              <button
+                type="button"
+                className="start-button"
+                onClick={start}
+                disabled={!actionAssetsReady}
+                aria-busy={!actionAssetsReady}
+              >
+                <span aria-live="polite">
+                  {actionAssetsFailed
+                    ? "动作素材载入失败"
+                    : actionAssetsReady
+                      ? "进入墨境"
+                      : `研墨中 ${loadedActionAssets}/${ACTION_ASSET_URLS.length}`}
+                </span>
+                <small>{actionAssetsReady ? "ENTER" : "LOADING"}</small>
               </button>
               <div className="keyboard-guide">
                 <span>

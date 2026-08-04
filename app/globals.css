@@ -61,9 +61,18 @@ button {
     );
 }
 .game-frame {
-  width: min(1500px, 100%);
-  height: min(940px, calc(100svh - 36px));
-  min-height: 680px;
+  /* Cap width from the playable stage height so the stretched stage art
+     stays near its native aspect instead of becoming ultra-wide. */
+  --frame-chrome: 170px; /* hud + control strip */
+  --frame-max-aspect: 1.85;
+  --frame-height: min(940px, calc(100svh - 36px));
+  width: min(
+    1500px,
+    100%,
+    calc((var(--frame-height) - var(--frame-chrome)) * var(--frame-max-aspect))
+  );
+  height: var(--frame-height);
+  min-height: min(680px, calc(100svh - 36px));
   position: relative;
   display: grid;
   grid-template-rows: 106px minmax(0, 1fr) 64px;
@@ -257,13 +266,25 @@ button {
   cursor: pointer;
 }
 .stage {
+  /* Height-locked background keeps the painted path at a stable % of the stage
+     across aspect ratios. `cover` crops vertically on tall/narrow viewports and
+     made characters float or sink relative to the bridge. */
+  /* The bridge deck is ~75% down the source artwork, so actors stand 25%
+     above the stage bottom after the background is mapped to the stage. */
+  --stage-ground: 25%;
+  min-width: 0;
   min-height: 0;
+  width: 100%;
   position: relative;
   overflow: hidden;
+  background-color: var(--paper-deep);
   background-image:
     linear-gradient(#f3efe408, #f3efe408), url("/assets/stage-background.png");
-  background-size: cover;
-  background-position: center 54%;
+  background-repeat: no-repeat;
+  /* Stretch-fill maps image % to stage % so the bridge stays under feet on
+     every aspect ratio. Frame aspect is capped above to limit distortion. */
+  background-size: 100% 100%;
+  background-position: center bottom;
 }
 .stage:before {
   content: "";
@@ -349,11 +370,15 @@ button {
   }
 }
 .player {
+  /* player.png soles sit ~14% above the bitmap bottom once ink drips are ignored. */
+  --foot-pad: 14%;
   position: absolute;
   width: clamp(190px, 24vw, 360px);
   aspect-ratio: 1.6;
   z-index: 6;
+  bottom: calc(var(--stage-ground) + var(--air-y, 0px));
   transform: translateX(-50%);
+  translate: 0 var(--foot-pad);
   transition:
     filter 0.15s,
     bottom 0.03s linear;
@@ -407,11 +432,13 @@ button {
   }
 }
 .enemy {
+  --foot-pad: 3.8%;
   position: absolute;
   right: 9%;
-  bottom: 10%;
+  bottom: var(--stage-ground);
   width: clamp(200px, 25vw, 370px);
   z-index: 5;
+  translate: 0 var(--foot-pad);
   animation: enemy-breathe 3.6s ease-in-out infinite;
   transition:
     opacity 0.5s,
@@ -550,6 +577,15 @@ button {
   transform: translate(4px, 5px);
   box-shadow: 2px 3px 0 #781b17d1;
 }
+.start-button:disabled,
+.start-button:disabled:hover,
+.start-button:disabled:active {
+  cursor: wait;
+  opacity: 0.76;
+  transform: none;
+  background: #2b2823;
+  box-shadow: 4px 5px 0 #781b1780;
+}
 .start-button small {
   padding: 3px 6px;
   border: 1px solid #fff7;
@@ -659,8 +695,14 @@ kbd {
     padding: 0;
   }
   .game-frame {
-    height: 100svh;
-    min-height: 620px;
+    --frame-chrome: 154px;
+    --frame-height: 100svh;
+    width: min(
+      100%,
+      calc((var(--frame-height) - var(--frame-chrome)) * var(--frame-max-aspect))
+    );
+    height: var(--frame-height);
+    min-height: min(620px, 100svh);
     border: 0;
   }
   .hud {
@@ -1253,8 +1295,8 @@ kbd {
   display: none;
 }
 
-/* Video-derived sword combo. Hit 1 branches from its raised-sword pose into
-   the matching opening pose of hit 2 when a second input is queued. */
+/* The first strike uses the always-available base illustration; the second
+   strike switches to its decoded video-derived sprite sequence. */
 .attack-sprite {
   position: absolute;
   inset: 0;
@@ -1265,33 +1307,18 @@ kbd {
   background-size: auto 100%;
   pointer-events: none;
 }
-.player.attacking .actor-visual img {
+.player.combo-2 .actor-visual img {
   opacity: 0;
   animation: none;
 }
-.player.attacking .attack-sprite {
-  opacity: 1;
-}
-.player.combo-1 .attack-sprite {
-  background-image: url("/assets/player-attack-1.webp");
-  background-size: 2500% 100%;
-  animation: player-attack-one-sprite 0.6s steps(24, end) 1 both;
-}
 .player.combo-2 .attack-sprite {
+  opacity: 1;
   background-image: url("/assets/player-attack-2.webp");
   background-size: 1900% 100%;
   animation: player-attack-two-sprite 0.44s steps(18, end) 1 both;
 }
-.player.attacking .slash {
+.player.combo-2 .slash {
   display: none;
-}
-@keyframes player-attack-one-sprite {
-  from {
-    background-position: 0 0;
-  }
-  to {
-    background-position: 100% 0;
-  }
 }
 @keyframes player-attack-two-sprite {
   from {
@@ -1368,6 +1395,87 @@ kbd {
   }
 }
 @keyframes player-jump-land-sprite {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 100% 0;
+  }
+}
+
+/* Running jumps use the reference video's takeoff and landing poses. The long
+   airborne hold is deliberately sampled more sparsely and played faster so it
+   follows the game's shorter physics arc instead of hanging at the apex. */
+.player.running-jump.jumping .jump-sprite {
+  background-image: url("/assets/player-run-jump-rise.webp");
+  background-size: 1100% 100%;
+  animation: player-run-jump-rise-sprite 0.3s steps(10, end) 1 both;
+}
+.player.running-jump.falling .jump-sprite {
+  background-image: url("/assets/player-run-jump-fall.webp");
+  background-size: 800% 100%;
+  animation: player-run-jump-fall-sprite 0.27s steps(7, end) 1 both;
+}
+.player.running-jump.landing .jump-sprite {
+  background-image: url("/assets/player-run-jump-land.webp");
+  background-size: 700% 100%;
+  animation: player-run-jump-land-sprite 0.32s steps(6, end) 1 both;
+}
+@keyframes player-run-jump-rise-sprite {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 100% 0;
+  }
+}
+@keyframes player-run-jump-fall-sprite {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 100% 0;
+  }
+}
+@keyframes player-run-jump-land-sprite {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 100% 0;
+  }
+}
+
+/* Video-derived dash roll: crouch, hand plant, tumble, recover into the run. */
+.roll-sprite {
+  position: absolute;
+  inset: 0;
+  display: block;
+  opacity: 0;
+  background-repeat: no-repeat;
+  background-position: 0 0;
+  pointer-events: none;
+}
+.player.rolling {
+  animation: none;
+}
+.player.rolling .actor-visual img {
+  opacity: 0;
+  animation: none;
+}
+.player.rolling .roll-sprite {
+  opacity: 1;
+  background-image: url("/assets/player-dash-roll.webp");
+  background-size: 1700% 100%;
+  animation: player-dash-roll-sprite 0.62s steps(16, end) 1 both;
+}
+.player.rolling .run-sprite,
+.player.rolling .attack-sprite,
+.player.rolling .jump-sprite,
+.player.rolling .roll-echo {
+  display: none;
+}
+@keyframes player-dash-roll-sprite {
   from {
     background-position: 0 0;
   }

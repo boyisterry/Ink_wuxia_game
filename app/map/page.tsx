@@ -59,10 +59,10 @@ type EncounterPlan = {
 };
 
 type ProgressionId =
-  | "grappling_hook"
+  | "instant_step"
+  | "cross_slash"
   | "ground_slam"
   | "breath_control"
-  | "double_jump"
   | "water_talisman"
   | "lantern_seal"
   | "iron_seal"
@@ -71,16 +71,38 @@ type ProgressionId =
   | "return_portal";
 
 const PROGRESSION_LABELS: Record<ProgressionId, string> = {
-  grappling_hook: "钩索",
+  instant_step: "瞬步",
+  cross_slash: "十字斩",
   ground_slam: "震地击",
   breath_control: "闭息诀",
-  double_jump: "踏云二段跳",
   water_talisman: "水行符",
   lantern_seal: "悬灯印",
   iron_seal: "赤铁印",
   forest_seal: "幽林印",
   water_memento: "水镜信物",
   return_portal: "归途传送权限",
+};
+
+type ProgressionKind = "technique" | "ability" | "seal" | "access";
+
+const PROGRESSION_KINDS: Record<ProgressionId, ProgressionKind> = {
+  instant_step: "technique",
+  cross_slash: "technique",
+  ground_slam: "ability",
+  breath_control: "ability",
+  water_talisman: "ability",
+  lantern_seal: "seal",
+  iron_seal: "seal",
+  forest_seal: "seal",
+  water_memento: "seal",
+  return_portal: "access",
+};
+
+const PROGRESSION_KIND_LABELS: Record<ProgressionKind, string> = {
+  technique: "战斗招式",
+  ability: "环境能力",
+  seal: "剧情凭证",
+  access: "通关权限",
 };
 
 type Room = {
@@ -103,6 +125,8 @@ type Room = {
   exit?: string;
   /** 首次通关该节点后授予的能力或门印 */
   grants?: ProgressionId[];
+  /** 在此节点重点验证、但不作为硬门槛的招式或能力 */
+  tests?: ProgressionId[];
   /** 关键战斗节点的数量、波次、触发与站位草案 */
   encounter?: EncounterPlan;
 };
@@ -123,7 +147,6 @@ const PLAYER_METRICS_PX = {
   height: 96,
   jumpHeight: 170,
   runJumpWidth: 240,
-  doubleJumpHeight: 300,
   ladderGrab: 24,
   safeFall: 260,
 } as const;
@@ -146,7 +169,6 @@ const PLAYER_METRICS = {
   height: pxToMapUnits(PLAYER_METRICS_PX.height),
   jumpHeight: pxToMapUnits(PLAYER_METRICS_PX.jumpHeight),
   runJumpWidth: pxToMapUnits(PLAYER_METRICS_PX.runJumpWidth),
-  doubleJumpHeight: pxToMapUnits(PLAYER_METRICS_PX.doubleJumpHeight),
   ladderGrab: pxToMapUnits(PLAYER_METRICS_PX.ladderGrab),
   safeFall: pxToMapUnits(PLAYER_METRICS_PX.safeFall),
 } as const;
@@ -159,13 +181,13 @@ const ZOOM_MIN = 0.38;
 const ZOOM_MAX = Math.max(1.15, ZOOM_GAME);
 
 const ZONES: Zone[] = [
-  { id: "gate", index: "01", name: "雨蚀山门", subtitle: "教学 · 起点", alias: "竹雾村缘", color: "#6e8f7c", x: 40, width: 1550, ability: "基础轻功", unlockAt: "破庙教学即可使用", boss: "无 · 精英赤枪校尉", loop: "竹影刀客教学走廊；穿插屋脊弩手；守门校场以赤枪校尉检验格挡与翻滚。" },
-  { id: "town", index: "02", name: "悬灯旧城", subtitle: "枢纽 · 精英", alias: "灯市", color: "#c18b52", x: 1480, width: 1600, ability: "钩索", unlockAt: "旧钟楼精英战", boss: "无 · 精英掌灯使", loop: "街巷刀客与屋顶弩手为主；暗渠墨腹蛛；旧钟楼以分波掌灯使战发放钩索。" },
+  { id: "gate", index: "01", name: "雨蚀山门", subtitle: "教学 · 起点", alias: "竹雾村缘", color: "#6e8f7c", x: 40, width: 1550, ability: "瞬步", unlockAt: "守门校场精英战", boss: "无 · 精英赤枪校尉", loop: "主廊教授移动、翻滚与基础剑式；校场习得瞬步，随后以雨亭箭线完成低风险验证。" },
+  { id: "town", index: "02", name: "悬灯旧城", subtitle: "枢纽 · 精英", alias: "灯市", color: "#c18b52", x: 1480, width: 1600, ability: "十字斩 · 悬灯印", unlockAt: "旧钟楼精英战", boss: "无 · 精英掌灯使", loop: "街巷、屋脊与暗渠构成三层枢纽；旧钟楼学习十字斩并取得悬灯印，开启东闸与后续回溯。" },
   { id: "mine", index: "03", name: "赤铁矿脉", subtitle: "纵深 · 区 Boss", alias: "剑冢牢", color: "#a95845", x: 2920, width: 1380, ability: "震地击", unlockAt: "剑冢牢底首领", boss: "剑冢狱主", loop: "墨腹蛛与链狱卒把守竖井；熔炉盾卫加压；深处剑冢狱主为第一章区 Boss。" },
   { id: "forest", index: "04", name: "孢子幽林", subtitle: "迷宫 · 区 Boss", alias: "黑松林", color: "#738f4c", x: 4280, width: 1600, ability: "闭息诀", unlockAt: "孢囊温室精英战", boss: "黑松魇兽", loop: "噬墨兽与墨羽鸦压迫走位；温室掌灯使发闭息诀；月下枯林黑松魇兽为区 Boss。" },
-  { id: "cliff", index: "05", name: "断云天险", subtitle: "攀爬 · 精英", alias: "悬寺", color: "#6087a6", x: 5720, width: 1500, ability: "踏云二段跳", unlockAt: "试剑峰精英战", boss: "无 · 精英赤枪校尉", loop: "栈道弩手与墨羽鸦逼迫移动；悬寺提灯术士；试剑峰赤枪校尉精英战发放踏云，无独立首领房。" },
+  { id: "cliff", index: "05", name: "断云天险", subtitle: "攀爬 · 精英", alias: "悬寺", color: "#6087a6", x: 5720, width: 1500, ability: "瞬步 · 十字斩精炼", unlockAt: "试剑峰综合试炼", boss: "无 · 精英赤枪校尉", loop: "主路强制上攀悬寺与试剑峰，以箭线、空敌和枪术复测瞬步与十字斩；崖底暗径作为失足恢复回环。" },
   { id: "palace", index: "06", name: "沉水行宫", subtitle: "水域 · 精英", alias: "黑松湖", color: "#507f8d", x: 7100, width: 1550, ability: "水行符", unlockAt: "倒影宴厅精英战", boss: "无 · 精英湖中墨姬", loop: "岸上沿用旧敌；下水后切换墨鳞游魂与沉甲水卒，湖中墨姬单体机制战收束。" },
-  { id: "peak", index: "07", name: "无明绝顶", subtitle: "终局 · 区 Boss", alias: "无相殿", color: "#786786", x: 8500, width: 1500, ability: "三印祭坛", unlockAt: "悬灯 / 赤铁 / 幽林三印汇合", boss: "无相殿主", loop: "盾卫与无面剑侍检验基础战斗；殿主逐项镜像钩索、震地、闭息、踏云与水行。" },
+  { id: "peak", index: "07", name: "无明绝顶", subtitle: "终局 · 区 Boss", alias: "无相殿", color: "#786786", x: 8500, width: 1500, ability: "三印 · 水镜汇合", unlockAt: "悬灯 / 赤铁 / 幽林三印与水镜信物", boss: "无相殿主", loop: "登顶路依次复测瞬步、十字斩与三种环境能力；殿主以镜像招式完成整章总结。" },
 ];
 
 const ROOMS: Room[] = [
@@ -176,9 +198,9 @@ const ROOMS: Room[] = [
   { id: "g8", zone: "gate", name: "石狮甬道", x: 650, y: 680, w: 170, h: 120, kind: "room", enemies: ["bamboo_blade", "rooftop_bow"] },
   { id: "g3", zone: "gate", name: "雨廊石阶", x: 840, y: 675, w: 180, h: 130, kind: "room", enemies: ["bamboo_blade", "rooftop_bow"] },
   { id: "g9", zone: "gate", name: "演武坪", x: 1040, y: 670, w: 170, h: 120, kind: "room", enemies: ["bamboo_blade"] },
-  { id: "g10", zone: "gate", name: "雨亭歇脚", x: 1230, y: 665, w: 160, h: 115, kind: "room", enemies: ["rooftop_bow"] },
+  { id: "g10", zone: "gate", name: "雨亭箭廊", x: 1230, y: 665, w: 160, h: 115, kind: "room", enemies: ["rooftop_bow"], requires: ["instant_step"], tests: ["instant_step"], enter: "校场习得瞬步后穿越连续箭线", exit: "东接山门闸口", note: "低伤害、长预警的瞬步教学；失败只退回雨廊，不坠落" },
   { id: "g6", zone: "gate", name: "山门闸口", x: 1410, y: 660, w: 140, h: 120, kind: "room", enemies: ["iron_shield", "rooftop_bow"] },
-  { id: "g4", zone: "gate", name: "守门校场", x: 980, y: 430, w: 170, h: 140, kind: "arena", enemies: ["scarlet_captain", "bamboo_blade"], enter: "演武坪上行", exit: "原路回主廊", note: "赤枪校尉 + 刀客跟班；教学精英，无能力奖励" },
+  { id: "g4", zone: "gate", name: "守门校场", x: 980, y: 430, w: 170, h: 140, kind: "arena", enemies: ["scarlet_captain", "bamboo_blade"], enter: "演武坪上行", exit: "战后回主廊并开放雨亭箭廊", grants: ["instant_step"], note: "先处理刀客，再以枪尖预警学习瞬步；通关取得第一项战斗招式", encounter: { lock: true, respawn: "首次清除后不刷新", budget: 6, intent: "用单一近战压力教学瞬步穿身、取消后摇与脱离长枪攻击线。", waves: [{ wave: 1, trigger: "踏入校场", units: [{ enemy: "bamboo_blade", count: 2, position: "地面" }] }, { wave: 2, trigger: "刀客清除", units: [{ enemy: "scarlet_captain", count: 1, position: "首领位" }] }] } },
   { id: "g5", zone: "gate", name: "崖下柴棚", x: 480, y: 930, w: 180, h: 110, kind: "secret", enemies: ["bamboo_blade"], enter: "竹篱小径单向落入", exit: "不可原路；东穿崖道回廊", note: "自竹篱小径单向落入；不可原路爬回" },
   { id: "g11", zone: "gate", name: "崖道回廊", x: 720, y: 930, w: 200, h: 110, kind: "secret", enemies: ["bamboo_blade"], enter: "自崖下柴棚横穿", exit: "东端木梯 → 雨廊石阶", note: "地下横穿后，东端木梯回主廊雨廊石阶" },
 
@@ -189,10 +211,10 @@ const ROOMS: Room[] = [
   { id: "t9", zone: "town", name: "灯市中市", x: 2160, y: 645, w: 180, h: 130, kind: "room", enemies: ["rooftop_bow"] },
   { id: "t3", zone: "town", name: "灯市东巷", x: 2360, y: 640, w: 170, h: 135, kind: "room", enemies: ["bamboo_blade", "rooftop_bow"] },
   { id: "t10", zone: "town", name: "戏台广场", x: 2550, y: 635, w: 180, h: 130, kind: "room", enemies: ["iron_shield", "bamboo_blade"] },
-  { id: "t11", zone: "town", name: "城东闸口", x: 2750, y: 630, w: 160, h: 125, kind: "room", enemies: ["iron_shield", "rooftop_bow"] },
-  { id: "t7", zone: "town", name: "商会阁楼", x: 1760, y: 400, w: 150, h: 110, kind: "room", enemies: ["lantern_mage", "rooftop_bow"], requires: ["grappling_hook"] },
-  { id: "t4", zone: "town", name: "灯市屋脊", x: 2100, y: 360, w: 200, h: 120, kind: "room", enemies: ["rooftop_bow", "ink_crow"], requires: ["grappling_hook"] },
-  { id: "t5", zone: "town", name: "旧钟楼", x: 2580, y: 250, w: 170, h: 250, kind: "arena", enemies: ["lantern_adept", "bamboo_blade", "rooftop_bow"], enter: "灯市长街 / 屋脊汇入", exit: "战后开放屋顶钩索捷径", grants: ["grappling_hook", "lantern_seal"], note: "跟班先行、掌灯使后登场；首次通关获得钩索", encounter: { lock: true, respawn: "首次清除后不刷新", budget: 8, intent: "先清理近远程基础威胁，再单独学习掌灯使的符阵与真假灯。", waves: [{ wave: 1, trigger: "踏入钟楼并落闸", units: [{ enemy: "bamboo_blade", count: 2, position: "地面" }, { enemy: "rooftop_bow", count: 1, position: "高台" }] }, { wave: 2, trigger: "第一波清除", units: [{ enemy: "lantern_adept", count: 1, position: "首领位" }] }] } },
+  { id: "t11", zone: "town", name: "城东印闸", x: 2750, y: 630, w: 160, h: 125, kind: "room", enemies: ["iron_shield", "rooftop_bow"], requires: ["lantern_seal"], tests: ["cross_slash"], enter: "旧钟楼悬灯印开启城闸", exit: "东出赤铁矿脉", note: "用盾卫验证十字斩破势；印闸只验证区域完成度，不消耗门印" },
+  { id: "t7", zone: "town", name: "商会阁楼", x: 1760, y: 400, w: 150, h: 110, kind: "room", enemies: ["lantern_mage", "rooftop_bow"], enter: "茶摊巷口木梯上行", exit: "原梯回长街", note: "屋顶层补给/远程压制房；木梯直达，无需特殊能力" },
+  { id: "t4", zone: "town", name: "灯市屋脊", x: 2100, y: 360, w: 200, h: 120, kind: "room", enemies: ["rooftop_bow", "ink_crow"], enter: "灯市中市木梯上行", exit: "原梯回主街或东连钟楼", note: "屋脊弩手与墨鸦练走位；木梯可达" },
+  { id: "t5", zone: "town", name: "旧钟楼", x: 2580, y: 250, w: 170, h: 250, kind: "arena", enemies: ["lantern_adept", "bamboo_blade", "rooftop_bow"], enter: "灯市长街 / 屋脊汇入", exit: "战后开放屋顶通路与城东印闸", grants: ["cross_slash", "lantern_seal"], note: "跟班先行、掌灯使后登场；识破真假灯后习得十字斩并取得悬灯印", encounter: { lock: true, respawn: "首次清除后不刷新", budget: 8, intent: "第一波用瞬步处理高低差火力；第二波以真假灯破绽教学十字斩的交叉命中与破势。", waves: [{ wave: 1, trigger: "踏入钟楼并落闸", units: [{ enemy: "bamboo_blade", count: 2, position: "地面" }, { enemy: "rooftop_bow", count: 1, position: "高台" }] }, { wave: 2, trigger: "第一波清除", units: [{ enemy: "lantern_adept", count: 1, position: "首领位" }] }] } },
   { id: "t6", zone: "town", name: "下城暗渠", x: 2180, y: 980, w: 220, h: 120, kind: "secret", enemies: ["ink_spider"], requires: ["ground_slam"], enter: "灯市中市脆地单向坠入", exit: "不可原路；东穿暗渠东段", note: "自灯市中市脆地单向坠入；需震地击开启，不可原路爬回" },
   { id: "t12", zone: "town", name: "暗渠东段", x: 2460, y: 980, w: 220, h: 120, kind: "secret", enemies: ["ink_spider", "bamboo_blade"], enter: "自下城暗渠横穿", exit: "回程木梯 → 戏台广场（无需能力）", note: "横穿后木梯回到戏台广场；回程无需能力" },
 
@@ -203,11 +225,11 @@ const ROOMS: Room[] = [
   { id: "m2", zone: "mine", name: "升降机井", x: 3600, y: 480, w: 160, h: 260, kind: "room", enemies: ["chain_jailer", "ink_crow"], enter: "中层运轨进入吊笼", exit: "升降梯双向回中层 / 下熔炉", note: "升降梯双向：中层运轨 ↔ 下层熔炉平台；链狱卒可悬空拦截" },
   { id: "m9", zone: "mine", name: "通风横巷", x: 3790, y: 640, w: 170, h: 120, kind: "room", enemies: ["ink_spider", "ink_crow"] },
   { id: "m3", zone: "mine", name: "轨道岔道", x: 3980, y: 650, w: 180, h: 120, kind: "room", enemies: ["ink_spider", "chain_jailer"] },
-  { id: "m10", zone: "mine", name: "矿工歇所", x: 4120, y: 645, w: 150, h: 120, kind: "room", enemies: ["ink_beast"], enter: "轨道岔道东延", exit: "东接根穴隧道出林", note: "矿脉东端歇脚；东接根穴隧道出林" },
+  { id: "m10", zone: "mine", name: "赤铁封门", x: 4120, y: 645, w: 150, h: 120, kind: "room", enemies: ["ink_beast"], requires: ["iron_seal"], tests: ["ground_slam"], enter: "击败狱主后由侧井返回中层", exit: "震碎封岩后东接根穴隧道", note: "区域出口同时验证赤铁印与震地击，确保矿区首领不可绕过" },
   { id: "m4", zone: "mine", name: "熔炉工坊", x: 3920, y: 860, w: 210, h: 160, kind: "arena", enemies: ["iron_shield", "ink_spider"], enter: "升降机井下行落台", exit: "原梯回中层；东可进牢底", note: "先处理洞顶伏击，再让盾卫占据熔炉主轴", encounter: { lock: true, respawn: "神龛刷新", budget: 7, intent: "把洞顶警戒与正面破盾拆成两段，避免同时遮挡反击窗口。", waves: [{ wave: 1, trigger: "升降平台落地", units: [{ enemy: "ink_spider", count: 2, position: "墙顶" }] }, { wave: 2, trigger: "靠近熔炉机关", units: [{ enemy: "iron_shield", count: 1, position: "地面" }, { enemy: "ink_spider", count: 1, position: "墙顶" }] }] } },
-  { id: "m5", zone: "mine", name: "废弃矿底", x: 3280, y: 1020, w: 200, h: 120, kind: "secret", enemies: ["ink_spider", "chain_jailer"], enter: "运轨栈台脆地单向坠入", exit: "不可原路；东穿矿底横巷", note: "自运轨栈台脆地单向坠入；不可原路爬回" },
+  { id: "m5", zone: "mine", name: "废弃矿底", x: 3280, y: 1020, w: 200, h: 120, kind: "secret", enemies: ["ink_spider", "chain_jailer"], requires: ["ground_slam"], enter: "取得震地击后震碎运轨栈台脆地", exit: "不可原路；东穿矿底横巷", note: "矿区通关后的即时回溯支路；奖励稀有强化材料与牢房旁路" },
   { id: "m11", zone: "mine", name: "矿底横巷", x: 3540, y: 1020, w: 210, h: 120, kind: "secret", enemies: ["ink_spider"], enter: "自废弃矿底横穿", exit: "木梯 → 通风横巷；或东接熔炉下层", note: "横穿后木梯回到通风横巷；亦可东接熔炉下层" },
-  { id: "m6", zone: "mine", name: "剑冢牢底", x: 4140, y: 1000, w: 190, h: 150, kind: "boss", enemies: ["tomb_warden"], enter: "熔炉东侧进入", exit: "侧井升降回中层", grants: ["ground_slam", "iron_seal"], note: "区 Boss：剑冢狱主；战后获得震地击，并经侧井升降回中层", encounter: { lock: true, respawn: "首次清除后不刷新", budget: 12, intent: "单体两阶段首领，以场地兵器和脆地变化承担复杂度。", waves: [{ wave: 1, trigger: "进入牢底并封门", units: [{ enemy: "tomb_warden", count: 1, position: "首领位" }] }] } },
+  { id: "m6", zone: "mine", name: "剑冢牢底", x: 4140, y: 1000, w: 190, h: 150, kind: "boss", enemies: ["tomb_warden"], enter: "熔炉东侧进入", exit: "侧井升降回中层赤铁封门", grants: ["ground_slam", "iron_seal"], tests: ["instant_step", "cross_slash"], note: "区 Boss：剑冢狱主；战后获得震地击与赤铁印，并经侧井回到出口验证区", encounter: { lock: true, respawn: "首次清除后不刷新", budget: 12, intent: "瞬步躲链、十字斩破兵器阵；二阶段引导 Boss 震裂场地，为玩家取得震地击建立因果。", waves: [{ wave: 1, trigger: "进入牢底并封门", units: [{ enemy: "tomb_warden", count: 1, position: "首领位" }] }] } },
 
   // 04 forest — 噬墨兽 / 墨羽鸦 → 黑松魇兽
   { id: "f12", zone: "forest", name: "根穴隧道", x: 4300, y: 640, w: 200, h: 120, kind: "room", enter: "矿工歇所东行", exit: "东出菌光入口", note: "矿→林连续过渡：洞口遮挡，无切场；西接矿工歇所，东接菌光入口" },
@@ -219,12 +241,12 @@ const ROOMS: Room[] = [
   { id: "f10", zone: "forest", name: "雾桥中段", x: 5500, y: 585, w: 160, h: 120, kind: "room", enemies: ["ink_crow", "ink_beast"] },
   { id: "f3", zone: "forest", name: "倒生树庭", x: 5260, y: 390, w: 180, h: 150, kind: "room", enemies: ["ink_crow"] },
   { id: "f4", zone: "forest", name: "孢囊温室", x: 5280, y: 800, w: 200, h: 140, kind: "arena", enemies: ["lantern_adept", "ink_beast"], enter: "荧光菌圃 / 朽木栈道下行", exit: "原梯回主廊", grants: ["breath_control"], note: "先诱导噬墨兽撞壁，再由掌灯使开启毒孢阶段", encounter: { lock: true, respawn: "首次清除后不刷新", budget: 9, intent: "第一波学习利用温室墙体，第二波把毒孢环境与精英施法绑定。", waves: [{ wave: 1, trigger: "踏入温室中央", units: [{ enemy: "ink_beast", count: 2, position: "地面" }] }, { wave: 2, trigger: "兽群清除并释放毒孢", units: [{ enemy: "lantern_adept", count: 1, position: "首领位" }, { enemy: "ink_beast", count: 1, position: "地面" }] }] } },
-  { id: "f5", zone: "forest", name: "月下枯林", x: 5680, y: 520, w: 150, h: 210, kind: "boss", enemies: ["pine_nightmare"], requires: ["breath_control"], enter: "雾桥中段 · 闭息门", exit: "战后回主廊", grants: ["forest_seal"], note: "区 Boss：黑松魇兽；需先完成孢囊温室", encounter: { lock: true, respawn: "首次清除后不刷新", budget: 13, intent: "单体虚实辨识首领；倒影和破角承担机制，不追加杂兵。", waves: [{ wave: 1, trigger: "进入月下枯林", units: [{ enemy: "pine_nightmare", count: 1, position: "首领位" }] }] } },
+  { id: "f5", zone: "forest", name: "月下枯林", x: 5680, y: 520, w: 150, h: 210, kind: "boss", enemies: ["pine_nightmare"], requires: ["breath_control"], enter: "雾桥中段 · 闭息门", exit: "战后开启东侧断崖索桥", grants: ["forest_seal"], tests: ["instant_step", "breath_control"], note: "区 Boss：黑松魇兽；需先完成孢囊温室，幽林印负责开启下一地区域出口", encounter: { lock: true, respawn: "首次清除后不刷新", budget: 13, intent: "闭息维持毒雾生存，瞬步穿越实体冲锋；倒影与破角承担辨识机制。", waves: [{ wave: 1, trigger: "进入月下枯林", units: [{ enemy: "pine_nightmare", count: 1, position: "首领位" }] }] } },
   { id: "f6", zone: "forest", name: "毒雾盲道", x: 4620, y: 920, w: 180, h: 110, kind: "secret", enemies: ["ink_beast", "lantern_mage"], requires: ["breath_control"], enter: "苔径西廊闭息门（实线支路）", exit: "东穿盲道东口", note: "自苔径西廊以闭息诀开门进入（实线支路，非捷径）" },
   { id: "f11", zone: "forest", name: "盲道东口", x: 4840, y: 920, w: 180, h: 110, kind: "secret", enemies: ["ink_beast"], requires: ["breath_control"], enter: "自毒雾盲道横穿", exit: "木梯 → 雾径环廊", note: "横穿后木梯回雾径环廊；与孢囊温室左右错开" },
 
   // 05 cliff — 栈道弩手 / 墨鸦 → 赤枪校尉精英
-  { id: "c1", zone: "cliff", name: "风蚀栈道", x: 5800, y: 560, w: 180, h: 120, kind: "room", enemies: ["rooftop_bow"] },
+  { id: "c1", zone: "cliff", name: "幽林索桥", x: 5800, y: 560, w: 180, h: 120, kind: "room", enemies: ["rooftop_bow"], requires: ["forest_seal"], enter: "幽林印解除索桥孢雾封锁", exit: "东入断云天险", note: "强制确认幽林主目标已完成，避免把缺印问题拖到终局" },
   { id: "c7", zone: "cliff", name: "断云短桥", x: 6000, y: 550, w: 170, h: 115, kind: "room", enemies: ["ink_crow"] },
   { id: "c2", zone: "cliff", name: "云隙长桥", x: 6190, y: 540, w: 190, h: 120, kind: "room", enemies: ["ink_crow", "rooftop_bow"] },
   { id: "c8", zone: "cliff", name: "风铃栈台", x: 6400, y: 535, w: 170, h: 115, kind: "room", enemies: ["rooftop_bow"] },
@@ -232,7 +254,7 @@ const ROOMS: Room[] = [
   { id: "c10", zone: "cliff", name: "云廊尽头", x: 6780, y: 525, w: 170, h: 120, kind: "room", enemies: ["rooftop_bow"] },
   { id: "c3", zone: "cliff", name: "悬空寺", x: 6300, y: 300, w: 180, h: 150, kind: "save" },
   { id: "c4", zone: "cliff", name: "鹰巢平台", x: 6620, y: 260, w: 160, h: 120, kind: "room", enemies: ["ink_crow"] },
-  { id: "c5", zone: "cliff", name: "试剑峰", x: 6840, y: 100, w: 180, h: 140, kind: "arena", enemies: ["scarlet_captain", "rooftop_bow", "ink_crow"], requires: ["grappling_hook"], enter: "钩索登峰", exit: "战后沿栈道下行", grants: ["double_jump"], note: "先夺取制高点，再与赤枪校尉单独决斗", encounter: { lock: true, respawn: "首次清除后不刷新", budget: 10, intent: "避免对空精英与空中/远程单位同时封死跳跃；把空间争夺和精英决斗拆波。", waves: [{ wave: 1, trigger: "钩索登顶", units: [{ enemy: "rooftop_bow", count: 1, position: "高台" }, { enemy: "ink_crow", count: 2, position: "空中" }] }, { wave: 2, trigger: "第一波清除", units: [{ enemy: "scarlet_captain", count: 1, position: "首领位" }] }] } },
+  { id: "c5", zone: "cliff", name: "试剑峰", x: 6840, y: 100, w: 180, h: 140, kind: "arena", enemies: ["scarlet_captain", "rooftop_bow", "ink_crow"], enter: "悬寺 / 鹰巢平台栈道上行", exit: "校尉认可以后开放下山云梯", tests: ["instant_step", "cross_slash"], note: "区域必经综合试炼；先夺取制高点，再以瞬步贴身、十字斩破枪势", encounter: { lock: true, respawn: "首次清除后不刷新", budget: 10, intent: "第一波复测瞬步处理高台与空敌；第二波用十字斩破完整枪术，不再发放新的位移能力。", waves: [{ wave: 1, trigger: "登顶", units: [{ enemy: "rooftop_bow", count: 1, position: "高台" }, { enemy: "ink_crow", count: 2, position: "空中" }] }, { wave: 2, trigger: "第一波清除", units: [{ enemy: "scarlet_captain", count: 1, position: "首领位" }] }] } },
   { id: "c6", zone: "cliff", name: "崩崖捷径", x: 5920, y: 780, w: 170, h: 110, kind: "secret", enemies: ["bamboo_blade"], enter: "断云短桥单向坠入", exit: "不可原路；东穿崖底暗径", note: "自断云短桥单向坠入；不可原路爬回" },
   { id: "c11", zone: "cliff", name: "崖底暗径", x: 6160, y: 780, w: 200, h: 110, kind: "secret", enemies: ["bamboo_blade"], enter: "自崩崖捷径横穿", exit: "木梯 → 云隙长桥", note: "横穿后木梯回到云隙长桥，略超前主线" },
 
@@ -243,21 +265,21 @@ const ROOMS: Room[] = [
   { id: "p8", zone: "palace", name: "锦鲤池廊", x: 7790, y: 540, w: 180, h: 125, kind: "room", enemies: ["bamboo_blade"] },
   { id: "p9", zone: "palace", name: "水镜长廊", x: 7990, y: 535, w: 180, h: 125, kind: "room", enemies: ["ink_crow", "rooftop_bow"] },
   { id: "p10", zone: "palace", name: "龙柱前厅", x: 8190, y: 530, w: 170, h: 130, kind: "room", enemies: ["iron_shield"] },
-  { id: "p3", zone: "palace", name: "倒影宴厅", x: 7880, y: 310, w: 200, h: 160, kind: "arena", enemies: ["lantern_adept", "iron_shield"], enter: "主廊梯上行", exit: "原梯回主廊", grants: ["water_talisman"], note: "盾卫先封路，掌灯使随后利用镜面符阵守护水行符", encounter: { lock: true, respawn: "首次清除后不刷新", budget: 9, intent: "先验证绕后破盾，再单独呈现镜面符阵；不让盾击与符阵同时压制。", waves: [{ wave: 1, trigger: "宴厅门关闭", units: [{ enemy: "iron_shield", count: 2, position: "地面" }] }, { wave: 2, trigger: "盾卫清除", units: [{ enemy: "lantern_adept", count: 1, position: "首领位" }] }] } },
+  { id: "p3", zone: "palace", name: "倒影宴厅", x: 7880, y: 310, w: 200, h: 160, kind: "arena", enemies: ["lantern_adept", "iron_shield"], enter: "主廊梯上行；区域主线必经", exit: "战后取得水行符并开放泄洪闸", grants: ["water_talisman"], tests: ["cross_slash"], note: "盾卫先封路，掌灯使随后利用镜面符阵守护水行符", encounter: { lock: true, respawn: "首次清除后不刷新", budget: 9, intent: "十字斩破盾后单独呈现镜面符阵；水行符奖励直接改变下半区路线。", waves: [{ wave: 1, trigger: "宴厅门关闭", units: [{ enemy: "iron_shield", count: 2, position: "地面" }] }, { wave: 2, trigger: "盾卫清除", units: [{ enemy: "lantern_adept", count: 1, position: "首领位" }] }] } },
   { id: "p6", zone: "palace", name: "泄洪闸房", x: 7180, y: 760, w: 160, h: 110, kind: "room", enemies: ["iron_shield", "chain_jailer"] },
   { id: "p4", zone: "palace", name: "水下长廊", x: 7480, y: 900, w: 280, h: 130, kind: "room", enemies: ["ink_eel", "drowned_guard"], requires: ["water_talisman"], enter: "泄洪闸 / 主廊下水口（需水行符）", exit: "原路浮出或东进祭坛", note: "游魂控制中层转向，水卒锚定池底；两组错位触发", encounter: { lock: false, respawn: "神龛刷新", budget: 6, intent: "建立水中层与水底两条压力带，保留上浮换气通道。", waves: [{ wave: 1, trigger: "游入长廊西半", units: [{ enemy: "ink_eel", count: 2, position: "水中层" }] }, { wave: 2, trigger: "接近东侧祭坛门", units: [{ enemy: "drowned_guard", count: 1, position: "水底" }, { enemy: "ink_eel", count: 1, position: "水中层" }] }] } },
-  { id: "p5", zone: "palace", name: "月下祭坛", x: 8080, y: 920, w: 220, h: 150, kind: "arena", enemies: ["lake_maiden"], requires: ["water_talisman"], enter: "水下长廊东延", exit: "战后浮出主廊 / 捷径", grants: ["water_memento"], note: "湖中墨姬以幻身承担杂兵压力；辨认本体红簪后输出", encounter: { lock: true, respawn: "首次清除后不刷新", budget: 10, intent: "保持单体精英机制焦点；分身来自本体技能，不再额外加入空中跟班。", waves: [{ wave: 1, trigger: "进入祭坛水镜范围", units: [{ enemy: "lake_maiden", count: 1, position: "首领位" }] }] } },
+  { id: "p5", zone: "palace", name: "月下祭坛", x: 8080, y: 920, w: 220, h: 150, kind: "arena", enemies: ["lake_maiden"], requires: ["water_talisman"], enter: "水下长廊东延", exit: "战后以水镜升流返回龙柱前厅并开启绝顶水门", grants: ["water_memento"], tests: ["instant_step", "water_talisman"], note: "湖中墨姬以幻身承担杂兵压力；辨认红簪、瞬步穿袖、借水行符换层", encounter: { lock: true, respawn: "首次清除后不刷新", budget: 10, intent: "保持单体精英焦点；水镜信物是行宫完成凭证，也是绝顶入口钥匙。", waves: [{ wave: 1, trigger: "进入祭坛水镜范围", units: [{ enemy: "lake_maiden", count: 1, position: "首领位" }] }] } },
 
   // 07 peak — 无面剑侍 → 无相殿主
-  { id: "k1", zone: "peak", name: "问心长阶", x: 8600, y: 520, w: 180, h: 130, kind: "room", enemies: ["iron_shield", "bamboo_blade"] },
+  { id: "k1", zone: "peak", name: "水镜天门", x: 8600, y: 520, w: 180, h: 130, kind: "room", enemies: ["iron_shield", "bamboo_blade"], requires: ["water_memento"], tests: ["water_talisman"], enter: "水镜信物升起通往绝顶的水阶", exit: "东接问心长阶", note: "强制完成沉水行宫；水行符负责穿越间歇涌水，信物负责开启天门" },
   { id: "k7", zone: "peak", name: "云阶中亭", x: 8800, y: 500, w: 170, h: 120, kind: "room", enemies: ["rooftop_bow"] },
   { id: "k8", zone: "peak", name: "望月石台", x: 8990, y: 480, w: 170, h: 120, kind: "room", enemies: ["faceless_sword"] },
-  { id: "k2", zone: "peak", name: "祭坛前廊", x: 9180, y: 450, w: 180, h: 130, kind: "room", enemies: ["faceless_sword", "iron_shield"] },
+  { id: "k2", zone: "peak", name: "问招前廊", x: 9180, y: 450, w: 180, h: 130, kind: "room", enemies: ["faceless_sword", "iron_shield"], tests: ["instant_step", "cross_slash"] },
   { id: "k9", zone: "peak", name: "碑林侧廊", x: 9380, y: 430, w: 170, h: 120, kind: "room", enemies: ["rooftop_bow", "bamboo_blade"] },
   { id: "k5", zone: "peak", name: "望台回廊", x: 9570, y: 410, w: 160, h: 110, kind: "room", enemies: ["rooftop_bow"] },
   { id: "k10", zone: "peak", name: "终局前廊", x: 9750, y: 390, w: 170, h: 120, kind: "room", enemies: ["faceless_sword", "iron_shield"] },
-  { id: "k3", zone: "peak", name: "三印祭坛", x: 9400, y: 230, w: 180, h: 150, kind: "save", requires: ["lantern_seal", "iron_seal", "forest_seal"], enter: "集齐悬灯 / 赤铁 / 幽林三印", exit: "开启终局前廊", note: "三印汇合点；非物理捷径" },
-  { id: "k4", zone: "peak", name: "无相殿顶", x: 9780, y: 110, w: 180, h: 150, kind: "boss", enemies: ["formless_lord"], enter: "终局前廊", exit: "战后可用回城传送", grants: ["return_portal"], note: "终局 Boss：依次复测五种已获能力；通关后激活绝顶↔旧城传送对", encounter: { lock: true, respawn: "首次清除后不刷新", budget: 16, intent: "单体三阶段终局战；每阶段只增加一种能力组合，最终用闭息/水行改变场地。", waves: [{ wave: 1, trigger: "踏入殿顶并完成三印开门", units: [{ enemy: "formless_lord", count: 1, position: "首领位" }] }] } },
+  { id: "k3", zone: "peak", name: "三印祭坛", x: 9400, y: 230, w: 180, h: 150, kind: "save", requires: ["lantern_seal", "iron_seal", "forest_seal"], enter: "集齐悬灯 / 赤铁 / 幽林三印；水镜信物已在天门验证", exit: "开启终局前廊", note: "终局整备点；三印负责剧情封印，水镜信物负责区域入口，职责不混淆" },
+  { id: "k4", zone: "peak", name: "无相殿顶", x: 9780, y: 110, w: 180, h: 150, kind: "boss", enemies: ["formless_lord"], requires: ["instant_step", "cross_slash", "ground_slam", "breath_control", "water_talisman"], enter: "终局前廊 · 五式问心门", exit: "战后可用回城传送", grants: ["return_portal"], tests: ["instant_step", "cross_slash", "ground_slam", "breath_control", "water_talisman"], note: "终局 Boss：完整复测两项战斗招式与三项环境能力；通关后激活绝顶↔旧城传送对", encounter: { lock: true, respawn: "首次清除后不刷新", budget: 16, intent: "一阶段瞬步与十字斩对剑；二阶段震地改变平台；三阶段闭息毒雾与水行镜面交替。", waves: [{ wave: 1, trigger: "踏入殿顶并完成五式问心", units: [{ enemy: "formless_lord", count: 1, position: "首领位" }] }] } },
   { id: "k6", zone: "peak", name: "回城捷径口", x: 8680, y: 780, w: 180, h: 110, kind: "secret", requires: ["return_portal"], enter: "终局后传送端点 / 升降", exit: "传送至旧城屋脊端", note: "配对传送，不是实体长隧道；两端均有「门」标记" },
 ];
 
@@ -266,8 +288,9 @@ const MARKERS: Marker[] = [
   { id: "mk2", kind: "mechanism", x: 1470, y: 700, label: "山门闸机", zone: "gate" },
   { id: "mk3", kind: "oneway", x: 545, y: 820, label: "柴棚单向落口", zone: "gate" },
   { id: "mk22", kind: "mechanism", x: 920, y: 850, label: "柴棚回程木梯", zone: "gate" },
+  { id: "mk35", kind: "ability", x: 1065, y: 500, label: "校场传授·瞬步", zone: "gate" },
   { id: "mk4", kind: "shrine", x: 1670, y: 720, label: "驿站神龛", zone: "town" },
-  { id: "mk5", kind: "ability", x: 2665, y: 520, label: "精英奖励·钩索", zone: "town" },
+  { id: "mk5", kind: "ability", x: 2665, y: 520, label: "精英传授·十字斩 / 悬灯印", zone: "town" },
   { id: "mk6", kind: "breakable", x: 2250, y: 820, label: "暗渠脆地落口", zone: "town" },
   { id: "mk24", kind: "oneway", x: 2250, y: 900, label: "暗渠单向坠入", zone: "town" },
   { id: "mk25", kind: "mechanism", x: 2640, y: 850, label: "暗渠回程木梯", zone: "town" },
@@ -286,7 +309,6 @@ const MARKERS: Marker[] = [
   { id: "mk13", kind: "shrine", x: 6390, y: 360, label: "悬寺神龛", zone: "cliff" },
   { id: "mk14", kind: "oneway", x: 6050, y: 680, label: "崩崖单向", zone: "cliff" },
   { id: "mk23", kind: "mechanism", x: 6360, y: 700, label: "崖底回程木梯", zone: "cliff" },
-  { id: "mk15", kind: "ability", x: 6920, y: 150, label: "精英奖励·踏云二段跳", zone: "cliff" },
   { id: "mk16", kind: "underwater", x: 7620, y: 960, label: "水下长廊", zone: "palace" },
   { id: "mk17", kind: "ability", x: 8180, y: 980, label: "墨姬祭坛·水镜信物", zone: "palace" },
   { id: "mk18", kind: "mechanism", x: 7260, y: 800, label: "泄洪石闸", zone: "palace" },
@@ -319,13 +341,16 @@ const ROOM_KIND_META: Record<Room["kind"], { label: string; hint: string }> = {
 };
 
 const ABILITY_CHAIN = [
-  { id: "grappling_hook", ability: "钩索", at: "02 旧钟楼精英", unlocks: "屋顶捷径 · 试剑峰登顶" },
-  { id: "ground_slam", ability: "震地击", at: "03 剑冢牢底", unlocks: "暗渠脆地 · 矿底破墙" },
-  { id: "breath_control", ability: "闭息诀", at: "04 孢囊温室", unlocks: "毒雾盲道 · 月下枯林" },
-  { id: "double_jump", ability: "踏云二段跳", at: "05 试剑峰精英", unlocks: "高空捷径与回溯平台" },
-  { id: "water_talisman", ability: "水行符", at: "06 倒影宴厅", unlocks: "水下长廊 · 月下祭坛" },
-  { id: "lantern_seal", ability: "三印祭坛", at: "07 三印汇合", unlocks: "终局前廊 · 无相殿顶" },
-  { id: "return_portal", ability: "归途传送", at: "07 无相殿主", unlocks: "绝顶 ↔ 旧城传送对" },
+  { id: "instant_step", zone: "gate", kind: "战斗招式", ability: "瞬步", at: "01 守门校场", unlocks: "雨亭箭廊 · 高压走位" },
+  { id: "cross_slash", zone: "town", kind: "战斗招式", ability: "十字斩", at: "02 旧钟楼精英", unlocks: "盾卫破势 · 双点弱点击破" },
+  { id: "lantern_seal", zone: "town", kind: "剧情凭证", ability: "悬灯印", at: "02 旧钟楼精英", unlocks: "城东印闸 · 三印之一" },
+  { id: "ground_slam", zone: "mine", kind: "环境能力", ability: "震地击", at: "03 剑冢牢底", unlocks: "暗渠脆地 · 废弃矿底" },
+  { id: "iron_seal", zone: "mine", kind: "剧情凭证", ability: "赤铁印", at: "03 剑冢牢底", unlocks: "赤铁封门 · 三印之一" },
+  { id: "breath_control", zone: "forest", kind: "环境能力", ability: "闭息诀", at: "04 孢囊温室", unlocks: "毒雾盲道 · 月下枯林" },
+  { id: "forest_seal", zone: "forest", kind: "剧情凭证", ability: "幽林印", at: "04 黑松魇兽", unlocks: "幽林索桥 · 三印之一" },
+  { id: "water_talisman", zone: "palace", kind: "环境能力", ability: "水行符", at: "06 倒影宴厅", unlocks: "水下长廊 · 月下祭坛" },
+  { id: "water_memento", zone: "palace", kind: "剧情凭证", ability: "水镜信物", at: "06 月下祭坛", unlocks: "绝顶水镜天门" },
+  { id: "return_portal", zone: "peak", kind: "通关权限", ability: "归途传送", at: "07 无相殿主", unlocks: "绝顶 ↔ 旧城传送对" },
 ] as const;
 
 type RoomLink = {
@@ -364,14 +389,11 @@ const ROOM_LINKS: RoomLink[] = [
   { from: "f10", to: "f5", kind: "branch" },
   ...connectChain(["f7", "f6", "f11", "f2"], "branch"),
   { from: "f10", to: "c1", kind: "main" },
-  ...connectChain(["c1", "c7", "c2", "c8", "c9", "c10"]),
-  ...connectChain(["c8", "c3", "c4", "c5"], "branch"),
+  ...connectChain(["c1", "c7", "c2", "c8", "c3", "c4", "c5", "c9", "c10"]),
   ...connectChain(["c7", "c6", "c11", "c2"], "oneway").map((link, index) => ({ ...link, oneWay: index === 0 })),
   { from: "c10", to: "p1", kind: "main" },
-  ...connectChain(["p1", "p7", "p2", "p8", "p9", "p10"]),
-  { from: "p8", to: "p3", kind: "branch" },
-  ...connectChain(["p1", "p6", "p4", "p5"], "branch"),
-  { from: "p10", to: "k1", kind: "main" },
+  ...connectChain(["p1", "p7", "p2", "p8", "p3", "p9", "p10", "p6", "p4", "p5"]),
+  { from: "p5", to: "k1", kind: "main" },
   ...connectChain(["k1", "k7", "k8", "k2", "k9", "k5", "k3", "k10", "k4"]),
   { from: "k1", to: "k6", kind: "branch" },
   { from: "k6", to: "t4", kind: "portal" },
@@ -390,9 +412,50 @@ function validateMapModel() {
     if (room.x < 0 || room.y < 0 || room.x + room.w > MAP_W || room.y + room.h > MAP_H) {
       errors.push(`${room.id} 超出地图边界`);
     }
-    for (const id of [...(room.requires ?? []), ...(room.grants ?? [])]) {
+    for (const id of [...(room.requires ?? []), ...(room.grants ?? []), ...(room.tests ?? [])]) {
       if (!progressionIds.has(id)) errors.push(`${room.id} 引用了未知进度 ID ${id}`);
     }
+  }
+
+  const grantedIds = new Set(ROOMS.flatMap((room) => room.grants ?? []));
+  for (const room of ROOMS) {
+    for (const required of room.requires ?? []) {
+      if (!grantedIds.has(required)) {
+        errors.push(`${room.id} 要求 ${required}，但地图中没有对应获取点`);
+      }
+    }
+  }
+
+  const requiredExitMilestones: Array<[string, ProgressionId]> = [
+    ["g10", "instant_step"],
+    ["t11", "lantern_seal"],
+    ["m10", "iron_seal"],
+    ["c1", "forest_seal"],
+    ["k1", "water_memento"],
+  ];
+  for (const [roomId, required] of requiredExitMilestones) {
+    if (!roomById.get(roomId)?.requires?.includes(required)) {
+      errors.push(`${roomId} 缺少区域出口里程碑 ${required}`);
+    }
+  }
+
+  const finalRequired: ProgressionId[] = [
+    "instant_step",
+    "cross_slash",
+    "ground_slam",
+    "breath_control",
+    "water_talisman",
+  ];
+  const finalRoom = roomById.get("k4");
+  for (const required of finalRequired) {
+    if (!finalRoom?.requires?.includes(required)) {
+      errors.push(`终局缺少五式校验: ${required}`);
+    }
+  }
+
+  for (const technique of ["instant_step", "cross_slash"] as ProgressionId[]) {
+    const testCount = ROOMS.filter((room) => room.tests?.includes(technique)).length;
+    if (testCount < 3) errors.push(`${technique} 仅有 ${testCount} 个验证节点`);
   }
 
   for (const link of ROOM_LINKS) {
@@ -691,7 +754,7 @@ export default function MapDemo() {
     >
       <header className="map-header">
         <div className="map-title-block">
-          <span className="prototype-tag">LEVEL DESIGN / v0.5 · ENCOUNTER PLAN</span>
+          <span className="prototype-tag">LEVEL DESIGN / v0.6 · GROWTH PATH</span>
           <h1>
             墨境行者 <b>世界地图模拟器</b>
           </h1>
@@ -1130,7 +1193,7 @@ export default function MapDemo() {
                       )}
                       {item.grants && zoom >= 0.6 && (
                         <span className="ability-grant">
-                          ＋ {PROGRESSION_LABELS[item.grants[0]]}
+                          ＋ {item.grants.map((id) => PROGRESSION_LABELS[id]).join(" / ")}
                         </span>
                       )}
                       {item.encounter && zoom >= 0.6 && (
@@ -1285,11 +1348,12 @@ export default function MapDemo() {
           </div>
 
           <div className="ability-chain-card">
-            <small>ABILITY CHAIN</small>
+            <small>GROWTH PATH</small>
             <ol>
               {ABILITY_CHAIN.map((step) => (
-                <li key={step.ability} className={zone.ability === step.ability || (zone.id === "peak" && step.ability === "归途传送") ? "current" : ""}>
+                <li key={step.id} className={zone.id === step.zone ? "current" : ""}>
                   <b>{step.ability}</b>
+                  <small>{step.kind}</small>
                   <span>{step.at}</span>
                   <em>→ {step.unlocks}</em>
                 </li>
@@ -1396,6 +1460,16 @@ export default function MapDemo() {
                   </b>
                 </p>
               )}
+              {room.tests && (
+                <p className="room-tests">
+                  重点验证：
+                  <b>
+                    {room.tests
+                      .map((id) => `${PROGRESSION_LABELS[id]}（${PROGRESSION_KIND_LABELS[PROGRESSION_KINDS[id]]}）`)
+                      .join(" · ")}
+                  </b>
+                </p>
+              )}
               {(room.enter || room.exit || room.note) && (
                 <div className="room-access">
                   {room.enter && (
@@ -1494,7 +1568,6 @@ export default function MapDemo() {
             <b>1 角色高 = {PLAYER_METRICS.height}u / {PLAYER_METRICS_PX.height}px</b>
             <div><span>原地跳高</span><em>{PLAYER_METRICS.jumpHeight}u</em></div>
             <div><span>跑跳跨度</span><em>{PLAYER_METRICS.runJumpWidth}u</em></div>
-            <div><span>二段跳高</span><em>{PLAYER_METRICS.doubleJumpHeight}u</em></div>
             <div><span>抓梯范围</span><em>±{PLAYER_METRICS.ladderGrab}u</em></div>
             <div><span>安全落差</span><em>{PLAYER_METRICS.safeFall}u</em></div>
             <div><span>战斗一屏</span><em>{GAME_SCREEN_UNITS.w}×{GAME_SCREEN_UNITS.h}u</em></div>

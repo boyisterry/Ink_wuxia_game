@@ -311,9 +311,11 @@ body:has(.map-app) { overflow: hidden; background: var(--map-bg); font-family: v
 .ability-chain-card li { display: grid; gap: 2px; padding-left: 10px; border-left: 2px solid #3f3a30; color: #8a8478; }
 .ability-chain-card li.current { border-left-color: #f5b041; color: #d9d2c4; }
 .ability-chain-card b { color: #f0e6d2; font-size: 11px; }
+.ability-chain-card li > small { color: #b78952; font-size: 7px; letter-spacing: .08em; }
 .ability-chain-card span { font-size: 9px; }
 .ability-chain-card em { font-size: 8px; font-style: normal; color: #9a9080; }
 .room-detail .room-grants { color: #e2bd74; border-left: 2px solid #e2bd74; padding-left: 8px; }
+.room-detail .room-tests { color: #84bfc2; border-left: 2px solid #4f8f94; padding-left: 8px; }
 .enemy-filters button.selected { outline: 1px solid #8a969e55; background: #1a2228; }
 .enemy-dossier { margin: 14px 0; padding: 12px; border: 1px solid #2c363e; background: #141a1f; border-radius: 4px; }
 .enemy-dossier > small { display: block; color: #6a757e; font-size: 9px; letter-spacing: .1em; margin-bottom: 8px; }

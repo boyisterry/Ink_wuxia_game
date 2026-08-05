@@ -15,11 +15,18 @@ const COMBO_DAMAGE = 28;
 const EXHAUSTED_DAMAGE_RATIO = 0.3;
 const ROLL_DURATION_MS = 620;
 const ROLL_MOVE_PER_FRAME = 0.76;
+const LIGHT_ATTACK_ONE_HIT_MS = 205;
+const LIGHT_ATTACK_COMBO_OPENS_MS = 330;
+const LIGHT_ATTACK_COMBO_GRACE_MS = 720;
+const LIGHT_ATTACK_TWO_HIT_MS = 185;
+const LIGHT_ATTACK_TWO_DURATION_MS = 460;
 const ACTION_ASSET_URLS = [
   "/assets/player.png",
+  "/assets/player-idle.png",
   "/assets/player-run-start.webp",
   "/assets/player-run-loop.webp",
   "/assets/player-run-stop.webp",
+  "/assets/player-attack-1.webp",
   "/assets/player-attack-2.webp",
   "/assets/player-jump-rise.webp",
   "/assets/player-jump-fall.webp",
@@ -71,6 +78,8 @@ export default function Home() {
   const attackPendingRef = useRef(false);
   const currentAttackStep = useRef(0);
   const comboQueuedRef = useRef(false);
+  const comboWindowOpenRef = useRef(false);
+  const chainAttackRef = useRef<(() => void) | null>(null);
   const attackToken = useRef(0);
   const enemyAttackingRef = useRef(false);
   const timers = useRef<number[]>([]);
@@ -142,6 +151,8 @@ export default function Home() {
     attackPendingRef.current = false;
     currentAttackStep.current = 0;
     comboQueuedRef.current = false;
+    comboWindowOpenRef.current = false;
+    chainAttackRef.current = null;
     attackToken.current += 1;
     enemyAttackingRef.current = false;
     setLocomotion("idle");
@@ -170,6 +181,8 @@ export default function Home() {
       attackRef.current = false;
       attackPendingRef.current = false;
       comboQueuedRef.current = false;
+      comboWindowOpenRef.current = false;
+      chainAttackRef.current = null;
       movingRef.current = false;
       enemyAttackingRef.current = false;
       clearTimers();
@@ -261,6 +274,7 @@ export default function Home() {
     attackRef.current = true;
     currentAttackStep.current = 1;
     comboQueuedRef.current = false;
+    comboWindowOpenRef.current = false;
     setLocomotion("idle");
     setAttackStep(1);
     if (!exhausted) spendSpirit(4);
@@ -288,37 +302,53 @@ export default function Home() {
       ? Math.max(1, Math.round(ATTACK_DAMAGE * EXHAUSTED_DAMAGE_RATIO))
       : ATTACK_DAMAGE;
 
-    later(() => {
-      if (token === attackToken.current) dealDamage(firstDamage, 24);
-    }, 300);
+    const finishAttack = () => {
+      if (token !== attackToken.current) return;
+      attackRef.current = false;
+      currentAttackStep.current = 0;
+      comboQueuedRef.current = false;
+      comboWindowOpenRef.current = false;
+      chainAttackRef.current = null;
+      setAttackStep(0);
+    };
+
+    const startSecondStrike = () => {
+      if (
+        token !== attackToken.current ||
+        currentAttackStep.current !== 1 ||
+        exhausted ||
+        spiritRef.current <= 0
+      )
+        return;
+
+      comboQueuedRef.current = false;
+      comboWindowOpenRef.current = false;
+      chainAttackRef.current = null;
+      currentAttackStep.current = 2;
+      setAttackStep(2);
+      spendSpirit(4);
+      later(() => {
+        if (token === attackToken.current) dealDamage(COMBO_DAMAGE, 27);
+      }, LIGHT_ATTACK_TWO_HIT_MS);
+      later(finishAttack, LIGHT_ATTACK_TWO_DURATION_MS);
+    };
+
+    chainAttackRef.current = startSecondStrike;
 
     later(() => {
-      if (token !== attackToken.current) return;
-      const canCombo =
-        !exhausted && comboQueuedRef.current && spiritRef.current > 0;
-      comboQueuedRef.current = false;
-      if (canCombo) {
-        currentAttackStep.current = 2;
-        setAttackStep(2);
-        spendSpirit(4);
-        later(() => {
-          if (token === attackToken.current) dealDamage(COMBO_DAMAGE, 27);
-        }, 195);
-        later(() => {
-          if (token !== attackToken.current) return;
-          attackRef.current = false;
-          currentAttackStep.current = 0;
-          setAttackStep(0);
-        }, 440);
-      } else {
-        later(() => {
-          if (token !== attackToken.current) return;
-          attackRef.current = false;
-          currentAttackStep.current = 0;
-          setAttackStep(0);
-        }, 150);
-      }
-    }, 450);
+      if (token === attackToken.current) dealDamage(firstDamage, 24);
+    }, LIGHT_ATTACK_ONE_HIT_MS);
+
+    later(() => {
+      if (token !== attackToken.current || currentAttackStep.current !== 1)
+        return;
+      comboWindowOpenRef.current = true;
+      if (comboQueuedRef.current) startSecondStrike();
+    }, LIGHT_ATTACK_COMBO_OPENS_MS);
+
+    later(() => {
+      if (currentAttackStep.current === 1) finishAttack();
+    }, LIGHT_ATTACK_COMBO_GRACE_MS);
   }, [finishGame, later, spendSpirit]);
 
   const attack = useCallback(() => {
@@ -330,8 +360,10 @@ export default function Home() {
       return;
 
     if (attackRef.current || attackPendingRef.current) {
-      if (currentAttackStep.current <= 1 && spiritRef.current > 0)
-        comboQueuedRef.current = true;
+      if (currentAttackStep.current === 1 && spiritRef.current > 0) {
+        if (comboWindowOpenRef.current) chainAttackRef.current?.();
+        else comboQueuedRef.current = true;
+      }
       return;
     }
 
@@ -626,7 +658,7 @@ export default function Home() {
           >
             <div className="actor-visual">
               <img
-                src="/assets/player.png"
+                src="/assets/player-idle.png"
                 alt="持剑的墨境行者"
                 draggable={false}
               />

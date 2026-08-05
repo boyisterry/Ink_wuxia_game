@@ -1295,8 +1295,8 @@ kbd {
   display: none;
 }
 
-/* The first strike uses the always-available base illustration; the second
-   strike switches to its decoded video-derived sprite sequence. */
+/* Video-derived light strikes. Long near-static holds from the source clip
+   were removed when sampling so anticipation reads without making input laggy. */
 .attack-sprite {
   position: absolute;
   inset: 0;
@@ -1307,18 +1307,36 @@ kbd {
   background-size: auto 100%;
   pointer-events: none;
 }
+.player.combo-1 .actor-visual img,
 .player.combo-2 .actor-visual img {
   opacity: 0;
   animation: none;
 }
+.player.combo-1 .attack-sprite,
 .player.combo-2 .attack-sprite {
   opacity: 1;
-  background-image: url("/assets/player-attack-2.webp");
-  background-size: 1900% 100%;
-  animation: player-attack-two-sprite 0.44s steps(18, end) 1 both;
 }
+.player.combo-1 .attack-sprite {
+  background-image: url("/assets/player-attack-1.webp");
+  background-size: 1800% 100%;
+  animation: player-attack-one-sprite 0.39s steps(17, end) 1 both;
+}
+.player.combo-2 .attack-sprite {
+  background-image: url("/assets/player-attack-2.webp");
+  background-size: 2000% 100%;
+  animation: player-attack-two-sprite 0.46s steps(19, end) 1 both;
+}
+.player.combo-1 .slash,
 .player.combo-2 .slash {
   display: none;
+}
+@keyframes player-attack-one-sprite {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 100% 0;
+  }
 }
 @keyframes player-attack-two-sprite {
   from {

@@ -312,6 +312,7 @@ export default function GateScreenS01() {
   const [focusSeam, setFocusSeam] = useState<string | null>(null);
   const [selectedCollider, setSelectedCollider] = useState("C01");
   const [layers, setLayers] = useState<Set<LayerId>>(new Set(["scene", "architecture", "collision", "gameplay", "camera"]));
+  const [artPreview, setArtPreview] = useState(false);
   const [cursor, setCursor] = useState({ x: 0, y: 0 });
   const viewportRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef({ active: false, x: 0, y: 0, left: 0, top: 0 });
@@ -325,11 +326,23 @@ export default function GateScreenS01() {
     () => ADDITIONAL_GATE_CONSTRUCTION.find((screen) => screen.screen === collider.screen),
     [collider.screen],
   );
+  const canvasBounds = artPreview ? STAGE : REGION;
   const toggleLayer = (layer: LayerId) => setLayers((current) => {
     const next = new Set(current);
     if (next.has(layer)) next.delete(layer); else next.add(layer);
     return next;
   });
+
+  const toggleArtPreview = () => {
+    const next = !artPreview;
+    setArtPreview(next);
+    if (next) {
+      setSelectedCollider("C01");
+      setFocusScreen(0);
+      setFocusSeam(null);
+    }
+    requestAnimationFrame(() => requestAnimationFrame(() => focusBuiltScreen(0, "fit")));
+  };
 
   /** Fit zooms from the real viewport so each screen keeps readable width. */
   const measureZoom = (mode: "region" | "fit") => {
@@ -427,7 +440,8 @@ export default function GateScreenS01() {
 
   return (
     <main
-      className="screen-map-app"
+      className={`screen-map-app ${artPreview ? "art-preview" : ""}`}
+      data-art-preview={artPreview ? "active" : "inactive"}
       data-stage-width={STAGE.w}
       data-stage-height={STAGE.h}
       data-region-width={REGION.w}
@@ -499,10 +513,18 @@ export default function GateScreenS01() {
 
         <section className="screen-main">
           <div className="screen-toolbar">
-            <span>坐标 X {cursor.x} / Y {cursor.y}</span>
+            <span>{artPreview ? "S01 深墨底图 · 无施工叠层" : `坐标 X ${cursor.x} / Y ${cursor.y}`}</span>
+            <button
+              type="button"
+              className={`art-preview-toggle ${artPreview ? "active" : ""}`}
+              aria-pressed={artPreview}
+              onClick={toggleArtPreview}
+            >
+              {artPreview ? "退出纯美术" : "纯美术预览"}
+            </button>
             <div className="screen-layer-controls">
               {(["scene", "architecture", "collision", "gameplay", "camera"] as LayerId[]).map((layer) => (
-                <button key={layer} type="button" className={layers.has(layer) ? "active" : ""} onClick={() => toggleLayer(layer)}>
+                <button key={layer} type="button" disabled={artPreview} className={layers.has(layer) ? "active" : ""} onClick={() => toggleLayer(layer)}>
                   {{ scene: "场景图", architecture: "建筑", collision: "碰撞", gameplay: "玩法点", camera: "摄影机" }[layer]}
                 </button>
               ))}
@@ -524,16 +546,16 @@ export default function GateScreenS01() {
             onPointerUp={() => { dragRef.current.active = false; }}
             onPointerCancel={() => { dragRef.current.active = false; }}
           >
-            <div className="screen-canvas" style={{ width: REGION.w * zoom, height: REGION.h * zoom }}>
-              <div className="screen-scale" style={{ width: REGION.w, height: REGION.h, transform: `scale(${zoom})`, "--inverse": 1 / zoom } as CSSProperties}>
-                <svg className="screen-drawing" viewBox={`0 0 ${REGION.w} ${REGION.h}`} role="img" aria-label="雨蚀山门十二屏连续实际尺寸施工图，当前细化S01破庙残院与S02竹雾村缘">
+            <div className="screen-canvas" style={{ width: canvasBounds.w * zoom, height: canvasBounds.h * zoom }}>
+              <div className="screen-scale" style={{ width: canvasBounds.w, height: canvasBounds.h, transform: `scale(${zoom})`, "--inverse": 1 / zoom } as CSSProperties}>
+                <svg className="screen-drawing" viewBox={`0 0 ${canvasBounds.w} ${canvasBounds.h}`} role="img" aria-label={artPreview ? "雨蚀山门 S01 深墨纯美术预览" : "雨蚀山门十二屏连续实际尺寸施工图，当前细化S01破庙残院与S02竹雾村缘"}>
                   <defs>
                     <pattern id="pixel-grid" width="100" height="100" patternUnits="userSpaceOnUse"><path d="M100 0H0V100"/></pattern>
                     <pattern id="region-grid" width="480" height="480" patternUnits="userSpaceOnUse"><path d="M480 0H0V480"/></pattern>
                     <linearGradient id="built-mist" gradientUnits="userSpaceOnUse" x1="0" x2={REGION.w}><stop offset="0" stopColor="#6f8f82" stopOpacity=".14"/><stop offset=".48" stopColor="#789886" stopOpacity=".13"/><stop offset=".52" stopColor="#7e9d85" stopOpacity=".13"/><stop offset="1" stopColor="#c29364" stopOpacity=".08"/></linearGradient>
                   </defs>
                   <rect width={REGION.w} height={REGION.h} className="region-paper"/>
-                  <rect width={REGION.w} height={REGION.h} fill="url(#region-grid)"/>
+                  <rect className="construction-grid region-grid" width={REGION.w} height={REGION.h} fill="url(#region-grid)"/>
                   <g className="construction-screens">
                     {GATE_SCREENS.map((screen, index) => {
                       const x = index * STAGE.w;
@@ -556,11 +578,11 @@ export default function GateScreenS01() {
                   </g>
                   {/* —— S01 source-space art (world X 0) —— */}
                   <g transform={`scale(${SCALE.x} ${SCALE.y})`}>
-                    <rect width={SOURCE_STAGE.w} height={SOURCE_STAGE.h} className="screen-paper"/><rect width={SOURCE_STAGE.w} height={SOURCE_STAGE.h} fill="url(#pixel-grid)"/>
+                    <rect width={SOURCE_STAGE.w} height={SOURCE_STAGE.h} className="screen-paper"/><rect className="construction-grid" width={SOURCE_STAGE.w} height={SOURCE_STAGE.h} fill="url(#pixel-grid)"/>
                     <path className="far-mountains" d="M0 580L180 390L330 470L520 280L720 440L930 230L1160 390L1370 250L1672 420V760H0Z"/>
-                    {layers.has("scene") && <image
+                    {(artPreview || layers.has("scene")) && <image
                       className="scene-art-layer"
-                      href="/assets/maps/gate/s01-ink-background-layered-4k.png"
+                      href="/assets/maps/gate/s01-ink-background-deep-4k.png"
                       x="0"
                       y="0"
                       width={SOURCE_STAGE.w}
@@ -581,7 +603,7 @@ export default function GateScreenS01() {
 
                   {/* —— S02 source-space art (world X = STAGE.w) —— */}
                   <g transform={`translate(${STAGE.w} 0) scale(${SCALE.x} ${SCALE.y})`}>
-                    <rect width={SOURCE_STAGE.w} height={SOURCE_STAGE.h} className="screen-paper"/><rect width={SOURCE_STAGE.w} height={SOURCE_STAGE.h} fill="url(#pixel-grid)"/>
+                    <rect width={SOURCE_STAGE.w} height={SOURCE_STAGE.h} className="screen-paper"/><rect className="construction-grid" width={SOURCE_STAGE.w} height={SOURCE_STAGE.h} fill="url(#pixel-grid)"/>
                     <path className="far-mountains" d="M0 420L140 360L280 430L460 260L640 400L820 220L1040 360L1260 240L1480 350L1672 420V760H0Z"/>
 
                     {layers.has("camera") && <g className="camera-layer"><rect x="24" y="24" width="1624" height="893"/><rect className="camera-deadzone" x="502" y="250" width="668" height="420"/><text x="42" y="58">CAMERA SAFE · 24px</text><text x="520" y="282">PLAYER DEAD ZONE</text><line x1="836" y1="24" x2="836" y2="917"/></g>}
@@ -624,7 +646,7 @@ export default function GateScreenS01() {
                   </g>
 
                   {ADDITIONAL_GATE_CONSTRUCTION.map((screen) => <g key={screen.id} transform={`translate(${screen.screen * STAGE.w} 0) scale(${SCALE.x} ${SCALE.y})`}>
-                    <rect width={SOURCE_STAGE.w} height={SOURCE_STAGE.h} className="screen-paper"/><rect width={SOURCE_STAGE.w} height={SOURCE_STAGE.h} fill="url(#pixel-grid)"/>
+                    <rect width={SOURCE_STAGE.w} height={SOURCE_STAGE.h} className="screen-paper"/><rect className="construction-grid" width={SOURCE_STAGE.w} height={SOURCE_STAGE.h} fill="url(#pixel-grid)"/>
                     <path className="far-mountains" d={`M0 420L180 ${330 - (screen.screen % 3) * 28}L350 430L560 ${245 + (screen.screen % 2) * 34}L760 410L980 ${215 + (screen.screen % 4) * 22}L1210 380L1450 300L1672 420V760H0Z`}/>
                     {layers.has("camera") && <g className="camera-layer"><rect x="24" y="24" width="1624" height="893"/><rect className="camera-deadzone" x="502" y="250" width="668" height="420"/><text x="42" y="58">CAMERA SAFE · 24px</text><text x="520" y="282">PLAYER DEAD ZONE</text><line x1="836" y1="24" x2="836" y2="917"/></g>}
                     {layers.has("architecture") && <g className="building-layer construction-parts">

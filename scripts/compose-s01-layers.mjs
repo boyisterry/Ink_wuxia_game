@@ -1,5 +1,6 @@
 import path from "node:path";
 import sharp from "sharp";
+import { gradeCoolInkBackground } from "./ink-color-grade.mjs";
 
 const root = process.cwd();
 const layersDir = path.join(root, "public/assets/maps/gate/s01/layers");
@@ -9,7 +10,7 @@ const height = 941;
 const neutral = { r: 255, g: 255, b: 255 };
 
 const files = {
-  background: path.join(layersDir, "00-background-mountains.png"),
+  background: path.join(layersDir, "00-background-mountains-panorama.png"),
   architecture: path.join(layersDir, "20-architecture.png"),
   platforms: path.join(layersDir, "40-platforms-source.png"),
   ground: path.join(layersDir, "50-ground-source.png"),
@@ -18,7 +19,8 @@ const files = {
 const neutralized = (input) =>
   sharp(input)
     .resize(width, height, { fit: "fill" })
-    .linear(1.08, -12)
+    .greyscale()
+    .normalize()
     .png()
     .toBuffer();
 
@@ -46,7 +48,8 @@ for (const spec of platformSpecs) {
     .toBuffer();
   const sprite = await sharp(trimmed)
     .resize(spec.target.width, spec.target.height, { fit: "fill" })
-    .linear(1.08, -12)
+    .greyscale()
+    .normalize()
     .png()
     .toBuffer();
 
@@ -63,6 +66,15 @@ const platformLayer = await sharp({ create: { width, height, channels: 3, backgr
   .png()
   .toBuffer();
 
+const architectureLayer = await sharp({ create: { width, height, channels: 3, background: neutral } })
+  .composite([
+    { input: architecture, blend: "multiply" },
+    { input: platformLayer, blend: "multiply" },
+  ])
+  .png()
+  .toBuffer();
+await sharp(architectureLayer).toFile(path.join(layersDir, "20-background-architecture.png"));
+
 const groundSource = await sharp(files.ground)
   .resize(width, height, { fit: "fill" })
   .png()
@@ -78,7 +90,8 @@ for (const segment of groundSegments) {
   const image = await sharp(groundSource)
     .extract(segment.source)
     .resize(segment.target.width, segment.target.height, { fit: "fill" })
-    .linear(1.08, -12)
+    .greyscale()
+    .normalize()
     .png()
     .toBuffer();
 
@@ -93,16 +106,22 @@ const groundLayer = await sharp({ create: { width, height, channels: 3, backgrou
   .composite([...groundComposites, { input: westMask, left: 0, top: 0 }])
   .png()
   .toBuffer();
+await sharp(groundLayer).toFile(path.join(layersDir, "50-foundation.png"));
 
-const background = await sharp(files.background)
-  .resize(width, height, { fit: "fill" })
+const transparentLayer = await sharp({ create: { width, height, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
   .png()
   .toBuffer();
+await sharp(transparentLayer).toFile(path.join(layersDir, "30-decoration.png"));
+await sharp(transparentLayer).toFile(path.join(layersDir, "40-effects.png"));
+
+const { buffer: background, gains: backgroundGains } = await gradeCoolInkBackground(files.background, width, height);
+await sharp(background).toFile(path.join(layersDir, "00-background-mountains.png"));
 
 const composite = await sharp(background)
   .composite([
-    { input: architecture, blend: "multiply" },
-    { input: platformLayer, blend: "multiply" },
+    { input: architectureLayer, blend: "multiply" },
+    { input: transparentLayer, blend: "over" },
+    { input: transparentLayer, blend: "over" },
     { input: groundLayer, blend: "multiply" },
   ])
   .png()
@@ -114,4 +133,4 @@ await sharp(composite)
   .png()
   .toFile(path.join(outputDir, "s01-ink-background-layered-4k.png"));
 
-console.log("S01 layered composite exported at 1672x941 and 3840x2160.");
+console.log(`S01 layered composite exported; cool background gains ${backgroundGains.map((value) => value.toFixed(4)).join(", ")}.`);

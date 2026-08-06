@@ -9,6 +9,7 @@ export type ConstructionColliderSpec = {
   w: number;
   h: number;
   note: string;
+  route?: "surface" | "underground";
 };
 
 export type ConstructionBuildingSpec = {
@@ -20,6 +21,7 @@ export type ConstructionBuildingSpec = {
   y1: number;
   material: string;
   shape: "slope" | "shed" | "gate" | "corridor" | "pavilion" | "arena" | "tower" | "water" | "bridge";
+  route?: "surface" | "underground";
 };
 
 export type ConstructionEncounterSpec = {
@@ -27,6 +29,24 @@ export type ConstructionEncounterSpec = {
   y: number;
   label: string;
   tone: "basic" | "range" | "elite" | "wave" | "safe" | "system";
+  route?: "surface" | "underground";
+};
+
+export type ConstructionLayerTransitionSpec = {
+  id: `H${string}`;
+  screen: number;
+  localX: number;
+  surfaceCollider: string;
+  undergroundCollider: string;
+  movement: "investigate-then-drop";
+  direction: "surface-to-underground";
+  camera: "layer-switch";
+  returnVia: "S06-ladder";
+  channelWidth: number;
+  openingDurationMs: number;
+  collisionReleaseMs: number;
+  landingRecoveryMs: number;
+  note: string;
 };
 
 export type GateConstructionSpec = {
@@ -55,48 +75,66 @@ const slab = (id: string, name: string, x: number, y: number, w: number, note: s
   id, name, kind: "solid", x, y, w, h, note,
 });
 
+export const GATE_HIDDEN_TRANSITIONS: readonly ConstructionLayerTransitionSpec[] = [{
+  id: "H01",
+  screen: 3,
+  localX: 790,
+  surfaceCollider: "C31",
+  undergroundCollider: "C32",
+  movement: "investigate-then-drop",
+  direction: "surface-to-underground",
+  camera: "layer-switch",
+  returnVia: "S06-ladder",
+  channelWidth: 140,
+  openingDurationMs: 650,
+  collisionReleaseMs: 280,
+  landingRecoveryMs: 180,
+  note: "H01-A为S04柴棚伪装暗板；H01-B为同世界X地下安全落脚点。调查后暗板在280ms释放碰撞、650ms完成开启动画，单向下落，回程经S06永久梯井。",
+}] as const;
+
 export const ADDITIONAL_GATE_CONSTRUCTION: readonly GateConstructionSpec[] = [
   {
     id: "s03", screen: 2, name: "山门缓坡", role: "移动 / 建筑", entryY: 632, exitY: 570, entryCollider: "C19", exitCollider: "C23",
     mainPath: "M0 632H180L540 620L900 600L1260 580L1672 570", upperPaths: ["M620 500H860", "M1120 450H1340"],
     gameplayNote: "三段缓坡控制在可持续奔跑角度；排水沟只影响脚步反馈，不形成卡脚凹槽。",
     colliders: [
-      floor("C19", "石桥接坡入口", 0, 632, 180, "承接S02村缘石桥，同高进入缓坡"), floor("C20", "一级排水缓坡", 180, 620, 360, "首段轻抬升，建立坡面移动"),
+      floor("C19", "石涵接坡入口", 0, 632, 180, "承接跨屏雨蚀石涵道，同高进入缓坡"), floor("C20", "一级排水缓坡", 180, 620, 360, "首段轻抬升，建立坡面移动"),
       floor("C21", "二级排水缓坡", 540, 600, 360, "中段连续跑跳，无隐形台阶"), floor("C22", "三级山门缓坡", 900, 580, 360, "末段抬升并展开远景"),
-      slab("C23", "竹篱口接驳地板", 1260, 570, 412, "贴齐S04入口，保留战斗前观察距离"),
+      floor("C23", "竹篱口接驳地基", 1260, 570, 412, "实体地基铺至画布底部，贴齐S04入口并保留战斗前观察距离"),
       { id: "C24", name: "排水沟检修板", kind: "oneway", x: 620, y: 500, w: 240, h: 18, note: "短跳可达的安全落脚，不截断主坡" },
       { id: "C25", name: "坡顶观察石台", kind: "oneway", x: 1120, y: 450, w: 220, h: 18, note: "观察S04敌人部署的上层预览位" },
     ],
     buildings: [
-      { id: "A11", name: "村缘石桥尾段", x0: 0, y0: 540, x1: 240, y1: 632, material: "湿石桥面 / 排水孔", shape: "bridge" },
       { id: "A12", name: "三段排水石阶", x0: 180, y0: 420, x1: 1260, y1: 620, material: "雨蚀青石 / 明沟", shape: "slope" },
       { id: "A13", name: "坡顶竹篱门", x0: 1260, y0: 360, x1: 1560, y1: 570, material: "竹篱 / 山门界碑", shape: "gate" },
     ], encounters: [{ x: 1080, y: 580, label: "竹影刀客 ×1", tone: "basic" }],
   },
   {
     id: "s04", screen: 3, name: "竹篱小径", role: "常规战斗", entryY: 570, exitY: 610, entryCollider: "C26", exitCollider: "C29",
-    mainPath: "M0 570H720M880 610H1672", upperPaths: ["M360 455H720", "M900 480H1210", "M720 570Q800 500 880 610"], lowerPath: "M760 610L820 780H1370L1480 800H1672",
-    gameplayNote: "主路形成第一次双敌战；中段可单向落到柴棚下层，并从东侧地穴口进入贯穿S05、S06的排水通道。",
+    mainPath: "M0 570H720H860L1260 590V610H1672", upperPaths: ["M360 455H720", "M900 480H1210"], lowerPath: "M790 570V780H1672",
+    gameplayNote: "主路形成第一次双敌战；柴棚暗板仅在近距交互后显露，下落后进入独立摄影机承载的S04–S06隐藏排水地域。",
     colliders: [
-      slab("C26", "小径西口", 0, 570, 300, "承接S03坡顶并提供敌情观察"), slab("C27", "竹径主战地板", 300, 570, 420, "两名刀客不同时在出生边缘激活；东端留出下层落口"),
-      slab("C28", "柴棚回接地板", 880, 610, 380, "与西段形成160px源宽跳隙，可跳过或单向落入柴棚"), slab("C29", "石狮甬道接驳", 1260, 610, 412, "贴齐S05入口并退出战斗锁"),
+      floor("C26", "小径西口", 0, 570, 300, "承接S03坡顶并提供敌情观察；实体地基延伸至画布底部，与J03两侧完整焊接"), slab("C27", "竹径主战地板", 300, 570, 420, "两名刀客不同时在出生边缘激活；东端留出下层落口"),
+      slab("C28", "柴棚回接地板", 860, 590, 400, "与西段保留140px源宽暗板区，仍低于安全助跑跨度"), slab("C29", "石狮甬道接驳", 1260, 610, 412, "贴齐S05入口并退出战斗锁"),
       { id: "C30", name: "风折竹上层台", kind: "oneway", x: 360, y: 455, w: 360, h: 18, note: "上层绕背路线" },
-      { id: "C31", name: "塌陷柴棚顶", kind: "oneway", x: 900, y: 480, w: 310, h: 18, note: "可穿落口，落至非致死下层" },
-      { id: "C32", name: "崖下柴棚地板", kind: "solid", x: 820, y: 780, w: 550, h: 161, note: "下层材料奖励区" },
-      { id: "C33", name: "下层回程踏板", kind: "oneway", x: 1380, y: 700, w: 180, h: 18, note: "分两跳回到东侧主路" },
-      floor("C102", "柴棚地穴东口", 1370, 800, 302, "地下支路贴齐S05西侧排水道"),
+      { id: "C31", name: "柴棚伪装暗板", kind: "oneway", x: 720, y: 570, w: 140, h: 18, note: "默认伪装为连续地面；近距调查后播放650ms开启特效，并在280ms释放碰撞" },
+      { id: "C32", name: "隐井落脚地域", kind: "solid", x: 620, y: 780, w: 600, h: 161, note: "隐藏层首个宽落脚区；净高足够完整起跳和小型遭遇", route: "underground" },
+      { id: "C33", name: "供奉龛检修台", kind: "oneway", x: 1210, y: 650, w: 260, h: 18, note: "移至右侧供奉龛下方，以墙体石托臂承重；地面罐子上方保持完整净空", route: "underground" },
+      { ...floor("C102", "柴棚地穴东口", 1220, 780, 452, "地下隐藏地域贴齐S05西侧排水道"), route: "underground" },
+      { id: "C114", name: "隐井西侧洞顶", kind: "solid", x: 620, y: 420, w: 100, h: 48, note: "暗板竖井左侧洞顶，阻止穿出地下画布", route: "underground" },
+      { id: "C115", name: "隐井东侧洞顶", kind: "solid", x: 860, y: 420, w: 812, h: 48, note: "保留140px竖井开口，其余洞顶形成明确地下边界", route: "underground" },
     ],
     buildings: [
       { id: "A14", name: "风折竹门", x0: 40, y0: 350, x1: 330, y1: 570, material: "折竹 / 低篱", shape: "gate" },
       { id: "A15", name: "塌陷柴棚", x0: 820, y0: 420, x1: 1240, y1: 780, material: "腐木 / 草顶", shape: "shed" },
-      { id: "A16", name: "崖下材料棚", x0: 850, y0: 690, x1: 1320, y1: 900, material: "湿木架 / 布罩", shape: "shed" },
-      { id: "A41", name: "柴棚地穴出口", x0: 1350, y0: 665, x1: 1672, y1: 800, material: "岩洞 / 排水砖 / 低顶梁", shape: "corridor" },
+      { id: "A16", name: "隐井材料侧室", x0: 620, y0: 430, x1: 1220, y1: 780, material: "湿木架 / 布罩 / 暗龛", shape: "shed", route: "underground" },
+      { id: "A41", name: "柴棚地穴出口", x0: 1220, y0: 430, x1: 1672, y1: 780, material: "岩洞 / 排水砖 / 拱形顶梁", shape: "corridor", route: "underground" },
     ], encounters: [{ x: 520, y: 570, label: "竹影刀客 A", tone: "basic" }, { x: 1040, y: 610, label: "竹影刀客 B", tone: "basic" }],
   },
   {
     id: "s05", screen: 4, name: "石狮甬道", role: "常规战斗", entryY: 610, exitY: 600, entryCollider: "C34", exitCollider: "C38",
-    mainPath: "M0 610H1672", upperPaths: ["M520 475H790", "M1050 445H1360"], lowerPath: "M0 800H400L760 820H1200L1672 800",
-    gameplayNote: "地表三重门框保留完整弩线预警；地下排水道从S04柴棚连续穿过本屏，并在S06涵洞回接。",
+    mainPath: "M0 610H1672", upperPaths: ["M520 475H790", "M1050 445H1360"], lowerPath: "M0 780H1672",
+    gameplayNote: "地表三重门框保留完整弩线预警；隐藏层独立绘制为一整屏宽的排水地域，包含上下落脚、暗龛和完整跳跃净空。",
     colliders: [
       slab("C34", "甬道西口", 0, 610, 260, "承接竹篱小径；下方为连续排水道"), slab("C35", "第一门洞结构板", 260, 610, 400, "石狮后安全区与涵洞顶板"),
       slab("C36", "第二门洞结构板", 660, 610, 420, "近战与弩线交汇区，下方保持净空"), slab("C37", "第三门洞结构板", 1080, 600, 340, "离开交火区前的小抬升"),
@@ -104,36 +142,42 @@ export const ADDITIONAL_GATE_CONSTRUCTION: readonly GateConstructionSpec[] = [
       { id: "C39", name: "西门楼射台", kind: "oneway", x: 520, y: 475, w: 270, h: 18, note: "可反击弩手的中层台" },
       { id: "C40", name: "东门楼弩台", kind: "oneway", x: 1050, y: 445, w: 310, h: 18, note: "屋脊弩手部署位" },
       { id: "C41", name: "门楼内侧墙", kind: "boundary", x: 1380, y: 300, w: 24, h: 300, note: "阻止从屋顶越过S06接缝" },
-      floor("C103", "排水道西接驳", 0, 800, 400, "承接S04柴棚地穴，保持同高"),
-      floor("C104", "石狮地下排水道", 400, 820, 800, "低矮连续通道；配置材料和一名刀客"),
-      floor("C105", "排水道东接驳", 1200, 800, 472, "贴齐S06涵洞西口"),
+      { ...floor("C103", "排水道西接驳", 0, 780, 400, "承接S04隐藏地域，保持同高"), route: "underground" },
+      { ...floor("C104", "石狮地下排水地域", 400, 780, 800, "完整一屏宽探索区；允许奔跑、起跳与小型战斗"), route: "underground" },
+      { ...floor("C105", "排水道东接驳", 1200, 780, 472, "贴齐S06涵洞西口"), route: "underground" },
+      { id: "C109", name: "排水地域洞顶", kind: "solid", x: 0, y: 420, w: 1672, h: 48, note: "洞顶与地面美术完全分层；地板至洞顶净空312px源尺寸", route: "underground" },
+      { id: "C110", name: "西侧检修台", kind: "oneway", x: 470, y: 650, w: 260, h: 18, note: "第一段完整跳跃落脚", route: "underground" },
+      { id: "C111", name: "东侧暗龛台", kind: "oneway", x: 980, y: 620, w: 240, h: 18, note: "隐藏奖励与绕背位置", route: "underground" },
     ],
     buildings: [
       { id: "A17", name: "西侧残石狮门", x0: 160, y0: 360, x1: 500, y1: 610, material: "残石狮 / 青砖门框", shape: "gate" },
       { id: "A18", name: "中段题刻门", x0: 620, y0: 300, x1: 1010, y1: 610, material: "山门题刻 / 断匾", shape: "gate" },
       { id: "A19", name: "东侧弩手门楼", x0: 1050, y0: 280, x1: 1400, y1: 600, material: "灰瓦 / 射孔", shape: "tower" },
-      { id: "A42", name: "石狮地下排水涵道", x0: 0, y0: 665, x1: 1672, y1: 840, material: "拱券青砖 / 排水沟 / 检修孔", shape: "corridor" },
-    ], encounters: [{ x: 760, y: 610, label: "竹影刀客 ×1", tone: "basic" }, { x: 1200, y: 445, label: "屋脊弩手 ×1", tone: "range" }, { x: 820, y: 820, label: "涵洞刀客 ×1", tone: "basic" }],
+      { id: "A42", name: "石狮地下排水地域", x0: 0, y0: 420, x1: 1672, y1: 780, material: "拱券青砖 / 排水沟 / 检修孔 / 暗龛", shape: "corridor", route: "underground" },
+    ], encounters: [{ x: 760, y: 610, label: "竹影刀客 ×1", tone: "basic" }, { x: 1200, y: 445, label: "屋脊弩手 ×1", tone: "range" }, { x: 820, y: 780, label: "隐藏层守卫 ×1", tone: "elite", route: "underground" }],
   },
   {
     id: "s06", screen: 5, name: "雨廊石阶", role: "移动 / 建筑", entryY: 600, exitY: 590, entryCollider: "C42", exitCollider: "C46",
-    mainPath: "M0 600H420L720 590H1672", upperPaths: ["M300 420H1320"], lowerPath: "M0 800H1180L1320 590",
-    gameplayNote: "长雨廊承担室外到建筑群的过渡；地下涵洞承接S05排水道，并通过东侧永久木梯回到雨廊主路。",
+    mainPath: "M0 600H420L720 590H1672", upperPaths: ["M300 420H1320"], lowerPath: "M0 780H1180L1320 590",
+    gameplayNote: "长雨廊承担室外到建筑群的过渡；隐藏层保持完整跳跃净空，并通过东侧永久梯井单向揭示后回到雨廊主路。",
     colliders: [
       slab("C42", "雨廊西阶结构板", 0, 600, 300, "承接石狮甬道；下方接续涵洞"), slab("C43", "长雨廊主结构板", 300, 600, 520, "廊柱不进入实际碰撞，地下保持净空"),
       slab("C44", "檐水石槽结构板", 820, 590, 400, "瀑布式檐水通过处"), slab("C45", "回程梯上口", 1220, 590, 220, "下层支路永久回接点"),
       slab("C46", "演武坪接驳结构板", 1440, 590, 232, "贴齐S07入口"),
       { id: "C47", name: "雨廊屋檐射台", kind: "oneway", x: 300, y: 420, w: 1020, h: 18, note: "弩手巡逻与观察平台" },
-      { id: "C48", name: "排水涵洞地板", kind: "solid", x: 340, y: 800, w: 840, h: 141, note: "S04下层支路向东延伸" },
-      { id: "C49", name: "回程梯中段踏板", kind: "oneway", x: 1230, y: 700, w: 180, h: 18, note: "连接涵洞和雨廊主路" },
-      floor("C106", "涵洞西接驳", 0, 800, 340, "承接S05地下排水道，保持同高"),
-      floor("C107", "涵洞东端梯井", 1180, 800, 260, "地下通道终点与永久回程梯底"),
+      { id: "C48", name: "排水涵洞地板", kind: "solid", x: 340, y: 780, w: 840, h: 161, note: "隐藏地域向东延伸，保持完整奔跑空间", route: "underground" },
+      { id: "C49", name: "回程梯中段踏板", kind: "oneway", x: 1230, y: 690, w: 180, h: 18, note: "连接隐藏涵洞和雨廊主路", route: "underground" },
+      { ...floor("C106", "涵洞西接驳", 0, 780, 340, "承接S05地下排水道，保持同高"), route: "underground" },
+      { ...floor("C107", "涵洞东端梯井", 1180, 780, 260, "地下通道终点与永久回程梯底"), route: "underground" },
+      { id: "C112", name: "雨廊地下洞顶", kind: "solid", x: 0, y: 420, w: 1180, h: 48, note: "保证312px源尺寸净空，梯井侧保持向上开口", route: "underground" },
+      { id: "C113", name: "梯井起跳台", kind: "oneway", x: 1040, y: 650, w: 180, h: 18, note: "从涵洞地板起跳到梯井的第一落脚", route: "underground" },
     ],
     buildings: [
       { id: "A20", name: "长雨廊", x0: 180, y0: 330, x1: 1360, y1: 600, material: "深檐 / 木柱 / 檐水帘", shape: "corridor" },
       { id: "A21", name: "悬钟架", x0: 720, y0: 360, x1: 940, y1: 590, material: "铜钟 / 湿绳", shape: "pavilion" },
-      { id: "A22", name: "下层木梯口", x0: 1180, y0: 560, x1: 1420, y1: 820, material: "木梯 / 排水涵洞", shape: "bridge" },
-      { id: "A43", name: "涵洞西侧连续段", x0: 0, y0: 665, x1: 420, y1: 820, material: "拱券青砖 / 湿苔 / 排水槽", shape: "corridor" },
+      { id: "A22", name: "隐藏层永久梯井", x0: 1180, y0: 420, x1: 1440, y1: 780, material: "木梯 / 排水涵洞 / 顶部暗门", shape: "bridge", route: "underground" },
+      { id: "A43", name: "涵洞西侧连续地域", x0: 0, y0: 420, x1: 1180, y1: 780, material: "拱券青砖 / 湿苔 / 排水槽", shape: "corridor", route: "underground" },
+      { id: "A44", name: "雨廊检修暗门", x0: 1220, y0: 500, x1: 1420, y1: 590, material: "闭合木门 / 地表仅显示出口", shape: "gate" },
     ], encounters: [{ x: 980, y: 420, label: "屋脊弩手 ×1", tone: "range" }],
   },
   {

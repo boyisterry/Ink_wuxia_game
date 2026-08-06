@@ -36,10 +36,16 @@ npm run dev
 
 `npm run install:ci` 仅供使用 GNU/Linux 工具链的 Sites CI 环境；本地开发请使用跨平台的 `npm ci`。
 
-运行测试与生产构建：
+运行测试与普通生产构建（不需要 Sites 托管配置）：
 
 ```bash
 npm test
+```
+
+部署到 ChatGPT Sites 前，在本地准备受 Git 忽略的 `.openai/hosting.json`，再执行：
+
+```bash
+npm run build:sites
 ```
 
 ## 技术栈
@@ -56,4 +62,4 @@ npm test
 - `public/assets/`：水墨场景、角色和敌人素材
 - `tests/`：渲染与构建验证
 - `worker/`：Cloudflare Worker 入口
-- `.openai/hosting.json`：Sites 托管配置
+- `.openai/hosting.json`：仅保存在本地、受 Git 忽略的 Sites 托管配置

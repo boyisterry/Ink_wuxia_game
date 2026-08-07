@@ -1,6 +1,7 @@
 import path from "node:path";
 import sharp from "sharp";
 import { gradeCoolInkBackground } from "./ink-color-grade.mjs";
+import { buildMirroredFoundationTexture } from "./ink-foundation-texture.mjs";
 
 const root = process.cwd();
 const assetRoot = path.join(root, "public/assets/maps/gate");
@@ -18,27 +19,32 @@ const files = {
   decorationSource: path.join(s04Dir, "source/30-decoration-keyed.png"),
 };
 
+async function fadedContinuation(source, stripWidth, solidWidth = 70) {
+  const { data, info } = await sharp(source)
+    .extract({ left: width - stripWidth, top: 0, width: stripWidth, height })
+    .ensureAlpha()
+    .flop()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const rgba = Buffer.alloc(stripWidth * height * 4);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < stripWidth; x += 1) {
+      const sourceIndex = (y * stripWidth + x) * info.channels;
+      const targetIndex = (y * stripWidth + x) * 4;
+      const t = x <= solidWidth ? 0 : Math.min(1, (x - solidWidth) / (stripWidth - solidWidth));
+      const fade = 1 - t * t * (3 - 2 * t);
+      rgba[targetIndex] = data[sourceIndex];
+      rgba[targetIndex + 1] = data[sourceIndex + 1];
+      rgba[targetIndex + 2] = data[sourceIndex + 2];
+      rgba[targetIndex + 3] = Math.round(data[sourceIndex + 3] * fade);
+    }
+  }
+  return sharp(rgba, { raw: { width: stripWidth, height, channels: 4 } }).png().toBuffer();
+}
+
 const { buffer: gradedBackground, gains: backgroundGains } = await gradeCoolInkBackground(files.backgroundSource, width, height);
 const continuationWidth = 360;
-const { data: continuationRgb, info: continuationInfo } = await sharp(files.s03Background)
-  .extract({ left: width - continuationWidth, top: 0, width: continuationWidth, height })
-  .removeAlpha()
-  .flop()
-  .raw()
-  .toBuffer({ resolveWithObject: true });
-const continuationRgba = Buffer.alloc(continuationWidth * height * 4);
-for (let y = 0; y < height; y += 1) {
-  for (let x = 0; x < continuationWidth; x += 1) {
-    const sourceIndex = (y * continuationWidth + x) * continuationInfo.channels;
-    const targetIndex = (y * continuationWidth + x) * 4;
-    const fade = x < 100 ? 1 : 1 - Math.min(1, (x - 100) / (continuationWidth - 100));
-    continuationRgba[targetIndex] = continuationRgb[sourceIndex];
-    continuationRgba[targetIndex + 1] = continuationRgb[sourceIndex + 1];
-    continuationRgba[targetIndex + 2] = continuationRgb[sourceIndex + 2];
-    continuationRgba[targetIndex + 3] = Math.round(255 * fade * fade * (3 - 2 * fade));
-  }
-}
-const continuation = await sharp(continuationRgba, { raw: { width: continuationWidth, height, channels: 4 } }).png().toBuffer();
+const continuation = await fadedContinuation(files.s03Background, continuationWidth, 100);
 const background = await sharp(gradedBackground).composite([{ input: continuation, left: 0, top: 0 }]).png().toBuffer();
 await sharp(background).toFile(path.join(layersDir, "00-background-mountains.png"));
 
@@ -97,6 +103,7 @@ const foundationTexture = await sharp(files.s03Foundation)
   .extract({ left: 1260, top: 570, width: 412, height: 371 })
   .png()
   .toBuffer();
+const continuousFoundationTexture = await buildMirroredFoundationTexture(foundationTexture, 412, width, 371);
 const foundationSegments = [
   { left: 0, top: 570, width: 860, height: 371 },
   { left: 860, top: 590, width: 400, height: 351 },
@@ -105,7 +112,10 @@ const foundationSegments = [
 const foundationComposites = [];
 for (const segment of foundationSegments) {
   foundationComposites.push({
-    input: await sharp(foundationTexture).resize(segment.width, segment.height, { fit: "fill", kernel: sharp.kernel.lanczos3 }).png().toBuffer(),
+    input: await sharp(continuousFoundationTexture)
+      .extract({ left: segment.left, top: segment.top - 570, width: segment.width, height: segment.height })
+      .png()
+      .toBuffer(),
     left: segment.left,
     top: segment.top,
   });
@@ -116,8 +126,13 @@ const foundationCaps = await sharp(Buffer.from(`
     <path d="M0 570H860V590H1260V610H1672"/>
   </g>
 </svg>`)).png().toBuffer();
-const foundation = await sharp({ create: { width, height, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
+const foundationBase = await sharp({ create: { width, height, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
   .composite([...foundationComposites, { input: foundationCaps, left: 0, top: 0 }])
+  .png()
+  .toBuffer();
+const foundationContinuation = await fadedContinuation(files.s03Foundation, 360, 70);
+const foundation = await sharp(foundationBase)
+  .composite([{ input: foundationContinuation, left: 0, top: 0 }])
   .png()
   .toBuffer();
 await sharp(foundation).toFile(path.join(layersDir, "50-foundation.png"));

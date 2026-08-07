@@ -98,9 +98,10 @@ const floorTexture = await sharp(surfaceFoundationPath)
   .png()
   .toBuffer();
 const floorTile = await sharp(floorTexture).resize(420, 161, { fit: "fill" }).png().toBuffer();
-const continuousFloor = await sharp({
-  create: { width: 1052, height: 161, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
-}).composite([{ input: floorTile, tile: true }]).png().toBuffer();
+const continuousFloor = await sharp(floorTile)
+  .resize(1052, 161, { fit: "fill", kernel: sharp.kernel.lanczos3 })
+  .png()
+  .toBuffer();
 const slabSvg = (slabWidth, slabHeight) => Buffer.from(`
 <svg xmlns="http://www.w3.org/2000/svg" width="${slabWidth}" height="${slabHeight}">
   <rect x="1.5" y="2" width="${slabWidth - 3}" height="${slabHeight - 5}" rx="2" fill="#424744" stroke="#171b18" stroke-width="3"/>
@@ -113,6 +114,11 @@ const slabSvg = (slabWidth, slabHeight) => Buffer.from(`
 </svg>`);
 const roofLeft = await sharp(slabSvg(100, 48)).png().toBuffer();
 const roofRight = await sharp(slabSvg(812, 48)).png().toBuffer();
+const roofSeamPatch = await sharp(Buffer.from(`
+<svg xmlns="http://www.w3.org/2000/svg" width="10" height="48">
+  <rect width="10" height="48" fill="#424744"/>
+  <path d="M0 2H10M0 45H10" fill="none" stroke="#171b18" stroke-width="3"/>
+</svg>`)).png().toBuffer();
 const shrinePlatform = await sharp(Buffer.from(`
 <svg xmlns="http://www.w3.org/2000/svg" width="260" height="72">
   <path d="M2 2H258V18H2Z" fill="#454a47" stroke="#171b18" stroke-width="3"/>
@@ -132,6 +138,7 @@ const foundation = await transparentCanvas().composite([
   { input: continuousFloor, left: 620, top: 780 },
   { input: roofLeft, left: 620, top: 420 },
   { input: roofRight, left: 860, top: 420 },
+  { input: roofSeamPatch, left: 1662, top: 420 },
   { input: shrinePlatform, left: 1210, top: 650 },
   { input: collisionCaps, left: 0, top: 0 },
 ]).png().toBuffer();

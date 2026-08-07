@@ -1,6 +1,7 @@
 import path from "node:path";
 import sharp from "sharp";
 import { gradeCoolInkBackground } from "./ink-color-grade.mjs";
+import { buildMirroredFoundationTexture } from "./ink-foundation-texture.mjs";
 
 const root = process.cwd();
 const assetRoot = path.join(root, "public/assets/maps/gate");
@@ -136,6 +137,7 @@ const foundationTexture = await sharp(files.s02Foundation)
   .extract({ left: 1100, top: 632, width: 572, height: 309 })
   .png()
   .toBuffer();
+const continuousFoundationTexture = await buildMirroredFoundationTexture(foundationTexture, 572, width, 371);
 const foundationSegments = [
   { left: 0, top: 632, width: 180, height: 309 },
   { left: 180, top: 620, width: 360, height: 321 },
@@ -146,16 +148,22 @@ const foundationSegments = [
 const foundationComposites = [];
 for (const segment of foundationSegments) {
   foundationComposites.push({
-    input: await sharp(foundationTexture)
-      .resize(segment.width, segment.height, { fit: "fill", kernel: sharp.kernel.lanczos3 })
+    // All pieces are sampled from one world-aligned raster. The vertical crop
+    // offset equals the segment's height above the lowest Y=570 surface.
+    input: await sharp(continuousFoundationTexture)
+      .extract({ left: segment.left, top: segment.top - 570, width: segment.width, height: segment.height })
       .png()
       .toBuffer(),
     left: segment.left,
     top: segment.top,
   });
 }
+const foundationCap = await sharp(Buffer.from(`
+<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
+  <path d="M0 632H180V620H540V600H900V580H1260V570H1672" fill="none" stroke="#171b18" stroke-width="5" stroke-linejoin="round"/>
+</svg>`)).png().toBuffer();
 const foundation = await sharp({ create: { width, height, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
-  .composite(foundationComposites)
+  .composite([...foundationComposites, { input: foundationCap, left: 0, top: 0 }])
   .png()
   .toBuffer();
 await sharp(foundation).toFile(path.join(layersDir, "50-foundation.png"));

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from "react";
-import { ADDITIONAL_GATE_CONSTRUCTION, GATE_HIDDEN_TRANSITIONS, type ConstructionBuildingSpec } from "../construction";
+import { ADDITIONAL_GATE_CONSTRUCTION, GATE_HIDDEN_TRANSITIONS, GATE_RETURN_TRANSITIONS, type ConstructionBuildingSpec } from "../construction";
 import { GATE_SCREEN, GATE_SCREENS, GATE_SCREEN_NAMES } from "../screens";
 import "./screen.css";
 
@@ -22,6 +22,12 @@ type Collider = {
   /** Zero-based screen index on the continuous canvas. */
   screen: number;
   route: "surface" | "underground";
+  activation?: {
+    initial: "disabled";
+    enableOn: "boss-combat-start";
+    disableOn: "boss-defeated";
+    encounter: "s08-gate-boss" | "s11-gate-boss";
+  };
 };
 
 type BuildingPart = {
@@ -97,10 +103,12 @@ const SEAM_LINKS: readonly SeamLink[] = SEAM_COLLIDER_PAIRS.map(([fromCollider, 
 const LOWER_SEAM_LINKS: readonly SeamLink[] = [
   { id: "U01", x: STAGE.w * 4, fromCollider: "C102", toCollider: "C103", movement: "walk", bidirectional: true, camera: "continuous", route: "underground" },
   { id: "U02", x: STAGE.w * 5, fromCollider: "C105", toCollider: "C106", movement: "walk", bidirectional: true, camera: "continuous", route: "underground" },
+  { id: "U03", x: STAGE.w * 6, fromCollider: "C107", toCollider: "C116", movement: "walk", bidirectional: true, camera: "continuous", route: "underground" },
 ] as const;
 
 const ALL_SEAM_LINKS: readonly SeamLink[] = [...SEAM_LINKS, ...LOWER_SEAM_LINKS];
 const HIDDEN_ROUTE_LINKS = GATE_HIDDEN_TRANSITIONS;
+const RETURN_ROUTE_LINKS = GATE_RETURN_TRANSITIONS;
 
 const sourceCollider = (
   screen: number,
@@ -113,6 +121,7 @@ const sourceCollider = (
   h: number,
   note: string,
   route: "surface" | "underground" = "surface",
+  activation?: Collider["activation"],
 ): Collider => ({
   id,
   name,
@@ -124,6 +133,7 @@ const sourceCollider = (
   h: sy(y + h) - sy(y),
   note,
   route,
+  activation,
 });
 
 const sourceBuilding = (
@@ -172,9 +182,8 @@ const COLLIDERS: Collider[] = [
   sourceCollider(1, "C15", "西民居屋檐", "oneway", 260, 540, 250, 18, "可跳屋顶；与地面路线重叠，不挡主路"),
   sourceCollider(1, "C16", "东民居错层檐", "oneway", 820, 505, 270, 18, "高于西屋；观察竹雾与S03远坡"),
   sourceCollider(1, "C17", "雨水木槽", "oneway", 530, 590, 170, 16, "landmark；短跳可达，提供第二落脚"),
-  sourceCollider(1, "C18", "竹篱后景挡板", "boundary", 980, 380, 28, 252, "后景不可穿；不改变主路碰撞"),
   ...ADDITIONAL_GATE_CONSTRUCTION.flatMap((screen) => screen.colliders.map((collider) => sourceCollider(
-    screen.screen, collider.id, collider.name, collider.kind, collider.x, collider.y, collider.w, collider.h, collider.note, collider.route ?? "surface",
+    screen.screen, collider.id, collider.name, collider.kind, collider.x, collider.y, collider.w, collider.h, collider.note, collider.route ?? "surface", collider.activation,
   ))),
 ];
 
@@ -277,7 +286,7 @@ const validateScreen = () => {
     }
   }
 
-  if (LOWER_SEAM_LINKS.length !== 2) throw new Error("S04–S06 地下通道必须建立两条跨屏接缝");
+  if (LOWER_SEAM_LINKS.length !== 3) throw new Error("S04–S07 地下通道必须建立三条跨屏接缝");
   for (const seamLink of LOWER_SEAM_LINKS) {
     const left = COLLIDERS.find((collider) => collider.id === seamLink.fromCollider);
     const right = COLLIDERS.find((collider) => collider.id === seamLink.toCollider);
@@ -288,6 +297,21 @@ const validateScreen = () => {
     if (seamLink.route !== "underground" || seamLink.movement !== "walk" || !seamLink.bidirectional || seamLink.camera !== "continuous") {
       throw new Error(`${seamLink.id} 必须是双向连续地下通道`);
     }
+  }
+
+  const expectedBossGateIds = new Set(["C65", "C66", "C93"]);
+  const bossGates = COLLIDERS.filter((collider) => collider.activation);
+  if (bossGates.length !== expectedBossGateIds.size || bossGates.some((collider) => !expectedBossGateIds.has(collider.id))) {
+    throw new Error("Boss战动态封门必须且只能是 C65、C66、C93");
+  }
+  for (const gate of bossGates) {
+    if (gate.kind !== "boundary" || gate.route !== "surface" || gate.activation?.initial !== "disabled" || gate.activation.enableOn !== "boss-combat-start" || gate.activation.disableOn !== "boss-defeated") {
+      throw new Error(`${gate.id} 必须在Boss战前无碰撞、开战时启用、击杀后解除`);
+    }
+  }
+  const unintendedPermanentWalls = COLLIDERS.filter((collider) => collider.kind === "boundary" && collider.route === "surface" && !collider.activation && collider.id !== "C05");
+  if (unintendedPermanentWalls.length > 0) {
+    throw new Error(`主路线存在未声明状态的永久边界墙：${unintendedPermanentWalls.map((collider) => collider.id).join(", ")}`);
   }
 
   for (let screen = 0; screen < GATE_SCREENS.length; screen += 1) {
@@ -315,9 +339,9 @@ const validateScreen = () => {
     throw new Error("S05 地下排水地域必须容纳角色完整起跳并保留顶部余量");
   }
   const undergroundStart = COLLIDERS.find((collider) => collider.id === "C32")!;
-  const undergroundEnd = COLLIDERS.find((collider) => collider.id === "C107")!;
+  const undergroundEnd = COLLIDERS.find((collider) => collider.id === "C116")!;
   const undergroundSpan = undergroundEnd.x + undergroundEnd.w - undergroundStart.x;
-  if (undergroundSpan < STAGE.w * 2.4) throw new Error("S04–S06 隐藏地域横向探索范围不足");
+  if (undergroundSpan < STAGE.w * 2.8) throw new Error("S04–S07 隐藏地域横向探索范围不足");
   for (const link of HIDDEN_ROUTE_LINKS) {
     const surface = COLLIDERS.find((item) => item.id === link.surfaceCollider)!;
     const underground = COLLIDERS.find((item) => item.id === link.undergroundCollider)!;
@@ -328,9 +352,25 @@ const validateScreen = () => {
     if (underground.y - surface.y > PLAYER.safeFall || link.movement !== "investigate-then-drop" || link.camera !== "layer-switch") {
       throw new Error(`${link.id} 必须是调查后开启、安全单向下落并切换地下摄影机`);
     }
-    if (surface.w !== sx(link.channelWidth) || surface.w - PLAYER.w < sx(48) || link.collisionReleaseMs >= link.openingDurationMs) {
+    const scaledChannelWidth = sx(link.channelWidth);
+    if (Math.abs(surface.w - scaledChannelWidth) > 2 || surface.w - PLAYER.w < sx(48) || link.collisionReleaseMs >= link.openingDurationMs) {
       throw new Error(`${link.id} 下落通道宽度、角色侧向余量或碰撞释放时序不安全`);
     }
+  }
+
+  const returnLink = RETURN_ROUTE_LINKS[0];
+  const returnFloor = COLLIDERS.find((collider) => collider.id === returnLink.undergroundFloor)!;
+  const returnStep = COLLIDERS.find((collider) => collider.id === returnLink.middlePlatform)!;
+  const returnCap = COLLIDERS.find((collider) => collider.id === returnLink.surfaceCap)!;
+  const respawn = ADDITIONAL_GATE_CONSTRUCTION.find((screen) => screen.id === "s07")!.encounters.find((encounter) => encounter.tone === "safe")!;
+  if (returnFloor.route !== "underground" || returnStep.route !== "underground" || returnCap.kind !== "oneway" || returnLink.movement !== "climb-ladder" || returnLink.direction !== "underground-to-surface" || returnLink.camera !== "layer-switch" || returnLink.bidirectional) {
+    throw new Error("S07 永久梯井必须由地下地板、中段踏板和可向上穿越的单向井盖组成");
+  }
+  if (returnStep.y >= returnFloor.y || returnCap.y >= returnStep.y || returnStep.y - returnCap.y > PLAYER.jumpHeight) {
+    throw new Error("S07 永久梯井的垂直落差不可达");
+  }
+  if (Math.abs(sx(respawn.x) - (returnCap.x - STAGE.w * 6 + returnCap.w / 2)) > sx(260)) {
+    throw new Error("S07 回程梯出口必须直接看见复活锚点");
   }
 
   const highlandFloor = COLLIDERS.find((collider) => collider.id === "C60")!;
@@ -343,12 +383,16 @@ const validateScreen = () => {
   if (climbSteps.some((step, index) => index > 0 && climbSteps[index - 1].y - step.y > PLAYER.jumpHeight)) {
     throw new Error("S07 登高石阶存在不可达高差");
   }
+  const s07BlockingBoundaries = COLLIDERS.filter((collider) => collider.screen === 6 && collider.route === "surface" && collider.kind === "boundary" && collider.x < climbSteps.at(-1)!.x + climbSteps.at(-1)!.w && collider.x + collider.w > climbSteps[0].x);
+  if (s07BlockingBoundaries.length > 0) {
+    throw new Error(`S07 登高主路线被边界碰撞阻断：${s07BlockingBoundaries.map((collider) => collider.id).join(", ")}`);
+  }
   const descentSteps = ["C67", "C68", "C69", "C70", "C71"].map((id) => COLLIDERS.find((collider) => collider.id === id)!);
   if (descentSteps.some((step, index) => index > 0 && step.y - descentSteps[index - 1].y > PLAYER.safeFall)) {
     throw new Error("S09 下山箭廊存在不安全落差");
   }
 
-  return { colliders: COLLIDERS.length, buildings: BUILDING_PARTS.length, seams: SEAM_LINKS.length, lowerSeams: LOWER_SEAM_LINKS.length, hiddenEntrances: HIDDEN_ROUTE_LINKS.length, dropGap, tunnelClearance, undergroundSpan, highlandRise, built: [...BUILT_SCREENS] } as const;
+  return { colliders: COLLIDERS.length, buildings: BUILDING_PARTS.length, seams: SEAM_LINKS.length, lowerSeams: LOWER_SEAM_LINKS.length, bossGates: bossGates.length, hiddenEntrances: HIDDEN_ROUTE_LINKS.length, dropGap, tunnelClearance, undergroundSpan, highlandRise, built: [...BUILT_SCREENS] } as const;
 };
 
 const SCREEN_VALIDATION = validateScreen();
@@ -584,7 +628,7 @@ export default function GateScreenS01() {
     >
       <header className="screen-header">
         <div><span>REGION 01 · CONTINUOUS CONSTRUCTION MAP</span><h1>雨蚀山门 <b>S01–S12 全区施工图</b></h1></div>
-        <nav><span>地表 {REGION.w}×{STAGE.h}px · 隐藏层 S04–S06 独立绘制 · 已施工 {SCREEN_VALIDATION.built.length}/12屏</span><Link href="/map/gate">返回场景总图 ↗</Link></nav>
+        <nav><span>地表 {REGION.w}×{STAGE.h}px · 隐藏层 S04–S07 独立绘制 · 已施工 {SCREEN_VALIDATION.built.length}/12屏</span><Link href="/map/gate">返回场景总图 ↗</Link></nav>
       </header>
 
       <div className="screen-workspace">
@@ -598,7 +642,7 @@ export default function GateScreenS01() {
             <div><dt>助跑跨度</dt><dd>{PLAYER.runJump}px</dd></div>
             <div><dt>安全落差</dt><dd>≤ {PLAYER.safeFall}px</dd></div>
             <div><dt>连续接缝</dt><dd>{SEAM_LINKS.length} / 11</dd></div>
-            <div><dt>地下接缝</dt><dd>{LOWER_SEAM_LINKS.length} / 2</dd></div>
+            <div><dt>地下接缝</dt><dd>{LOWER_SEAM_LINKS.length} / 3</dd></div>
             <div><dt>隐藏入口</dt><dd>{SCREEN_VALIDATION.hiddenEntrances} / 1</dd></div>
             <div><dt>S04暗板宽</dt><dd>{SCREEN_VALIDATION.dropGap}px</dd></div>
             <div><dt>涵洞净空</dt><dd>{SCREEN_VALIDATION.tunnelClearance}px</dd></div>
@@ -614,16 +658,18 @@ export default function GateScreenS01() {
               return <button key={screen.id} type="button" disabled={!firstCollider} className={focusScreen === index && zoomMode !== "seam" ? "active" : ""} onClick={() => { if (firstCollider) setSelectedCollider(firstCollider); focusBuiltScreen(index); }}>S{screen.index} {screen.name}</button>;
             })}
           </div>
-          <div className="screen-panel-heading compact"><span>物理接缝</span><b>J01–J11 / U01–U02</b></div>
+          <div className="screen-panel-heading compact"><span>物理接缝</span><b>J01–J11 / U01–U03</b></div>
           <div className="seam-focus-controls">
             {constructionPlane === "surface" && SEAM_LINKS.map((link) => <button key={link.id} type="button" className={zoomMode === "seam" && focusSeam === link.id ? "active" : ""} onClick={() => { setSelectedCollider(link.fromCollider); focusBuiltSeam(link); }}>{link.id}</button>)}
             {constructionPlane === "underground" && LOWER_SEAM_LINKS.map((link) => <button key={link.id} type="button" className={`underground ${zoomMode === "seam" && focusSeam === link.id ? "active" : ""}`} onClick={() => { setSelectedCollider(link.fromCollider); focusBuiltSeam(link); }}>{link.id}</button>)}
           </div>
 
-          <div className="screen-panel-heading compact"><span>跨层入口</span><b>H01</b></div>
+          <div className="screen-panel-heading compact"><span>跨层出入口</span><b>H01 / R01</b></div>
           <div className="hidden-transition-controls">
             <button type="button" className={constructionPlane === "surface" && selectedCollider === "C31" ? "active" : ""} onClick={() => focusHiddenTransition("surface")}><b>H01-A</b><span>地表调查暗板</span></button>
             <button type="button" className={constructionPlane === "underground" && selectedCollider === "C32" ? "active" : ""} onClick={() => focusHiddenTransition("underground")}><b>H01-B</b><span>地下安全落脚</span></button>
+            <button type="button" className={constructionPlane === "underground" && selectedCollider === "C116" ? "active" : ""} onClick={() => { setConstructionPlane("underground"); setSelectedCollider("C116"); focusBuiltScreen(6); }}><b>R01-B</b><span>S07地下梯井</span></button>
+            <button type="button" className={constructionPlane === "surface" && selectedCollider === "C121" ? "active" : ""} onClick={() => { setConstructionPlane("surface"); setSelectedCollider("C121"); focusBuiltScreen(6); }}><b>R01-A</b><span>复活坪出口</span></button>
           </div>
 
           <div className="screen-panel-heading compact"><span>{constructionPlane === "surface" ? "地表碰撞体" : "隐藏层碰撞体"}</span><b>{visibleColliders.length}</b></div>
@@ -632,7 +678,7 @@ export default function GateScreenS01() {
               <button
                 key={item.id}
                 type="button"
-                className={`${item.kind} ${selectedCollider === item.id ? "active" : ""}`}
+                className={`${item.kind} ${item.activation ? "conditional" : ""} ${selectedCollider === item.id ? "active" : ""}`}
                 onClick={() => {
                   setSelectedCollider(item.id);
                   setFocusScreen(item.screen);
@@ -826,16 +872,26 @@ export default function GateScreenS01() {
                   {ADDITIONAL_GATE_CONSTRUCTION.map((screen) => <g key={screen.id} transform={`translate(${screen.screen * STAGE.w} 0) scale(${SCALE.x} ${SCALE.y})`}>
                     <rect width={SOURCE_STAGE.w} height={SOURCE_STAGE.h} className="screen-paper"/><rect className="construction-grid" width={SOURCE_STAGE.w} height={SOURCE_STAGE.h} fill="url(#pixel-grid)"/>
                     <path className="far-mountains route-surface" d={`M0 420L180 ${330 - (screen.screen % 3) * 28}L350 430L560 ${245 + (screen.screen % 2) * 34}L760 410L980 ${215 + (screen.screen % 4) * 22}L1210 380L1450 300L1672 420V760H0Z`}/>
-                    {(artPreview || layers.has("scene")) && (constructionPlane === "surface" || (screen.screen >= 3 && screen.screen <= 5)) && <image
+                    {(artPreview || layers.has("scene")) && (constructionPlane === "surface" || (screen.screen >= 3 && screen.screen <= 6)) && <image
                       className="scene-art-layer region-sketch-layer"
                       href={constructionPlane === "underground"
                         ? screen.id === "s04"
-                          ? "/assets/maps/gate/s04-underground-ink-layered-4k.png?v=s04-underground-five-layer-1"
-                          : `/assets/maps/gate/region-sketch/underground/screens/${screen.id}.png?v=hidden-region-2`
+                          ? "/assets/maps/gate/s04-underground-ink-layered-4k.png?v=s04-underground-five-layer-2"
+                          : screen.id === "s05"
+                            ? "/assets/maps/gate/s05-underground-ink-layered-4k.png?v=s05-underground-five-layer-2"
+                          : `/assets/maps/gate/region-sketch/underground/screens/${screen.id}.png?v=hidden-region-s07-return-1`
                         : screen.id === "s03"
-                          ? "/assets/maps/gate/s03-ink-background-layered-4k.png?v=cool-grade-1"
+                          ? "/assets/maps/gate/s03-ink-background-layered-4k.png?v=seam-ground-2"
                           : screen.id === "s04"
-                            ? "/assets/maps/gate/s04-ink-background-layered-4k.png?v=s04-five-layer-3"
+                            ? "/assets/maps/gate/s04-ink-background-layered-4k.png?v=seam-ground-4"
+                            : screen.id === "s05"
+                              ? "/assets/maps/gate/s05-ink-background-layered-4k.png?v=s05-surface-five-layer-5"
+                              : screen.id === "s06"
+                                ? "/assets/maps/gate/s06-ink-background-layered-4k.png?v=s06-surface-five-layer-1"
+                                : screen.id === "s07"
+                                  ? "/assets/maps/gate/s07-ink-background-grounded-4k.png?v=summit-flags-5"
+                                  : screen.id === "s08"
+                                    ? "/assets/maps/gate/s08-ink-background-layered-4k.png?v=s08-level-seam-2"
                             : `/assets/maps/gate/region-sketch/screens/${screen.id}.png?v=hidden-region-1`}
                       x="0"
                       y="0"
@@ -877,7 +933,7 @@ export default function GateScreenS01() {
                   </g>}
 
                   {layers.has("collision") && <g className="collision-layer">{COLLIDERS.filter((item) => item.route === constructionPlane).map((item) => (
-                    <g key={item.id} className={`collider collider-${item.kind} ${selectedCollider === item.id ? "selected" : ""}`} onClick={() => { setSelectedCollider(item.id); setFocusScreen(item.screen); }}>
+                    <g key={item.id} className={`collider collider-${item.kind} ${item.activation ? "conditional" : ""} ${selectedCollider === item.id ? "selected" : ""}`} onClick={() => { setSelectedCollider(item.id); setFocusScreen(item.screen); }}>
                       <rect x={item.x} y={item.y} width={item.w} height={item.h}/><text x={item.x + 10} y={item.y + 22}>{item.id} · {item.w}×{item.h}</text>
                     </g>
                   ))}</g>}
@@ -921,7 +977,15 @@ export default function GateScreenS01() {
                       const underground = COLLIDERS.find((item) => item.id === link.undergroundCollider)!;
                       return constructionPlane === "surface"
                         ? <g key={`${link.id}-surface`} className="hidden-route-entry"><rect x={surface.x} y={surface.y - sy(34)} width={surface.w} height={sy(52)}/><path d={`M${x} ${surface.y - sy(86)}V${surface.y - sy(16)}m${-sx(16)} ${-sy(18)}l${sx(16)} ${sy(18)}l${sx(16)} ${-sy(18)}`}/><text x={x} y={surface.y - sy(102)}>{link.id}-A · 隐藏入口 · 调查后向下穿落</text><text className="hidden-route-note" x={x} y={surface.y + sy(58)}>触发范围 {surface.w}px · 单向下落 · 摄影机切换</text></g>
-                        : <g key={`${link.id}-underground`} className="hidden-route-landing"><circle cx={x} cy={underground.y} r={sx(18)}/><path d={`M${x} ${underground.y - sy(150)}V${underground.y - sy(24)}`}/><text x={x} y={underground.y - sy(166)}>{link.id}-B · 地下安全落脚点</text><text className="hidden-route-note" x={x} y={underground.y + sy(58)}>与H01-A同世界X · 回程经S06永久梯井</text></g>;
+                        : <g key={`${link.id}-underground`} className="hidden-route-landing"><circle cx={x} cy={underground.y} r={sx(18)}/><path d={`M${x} ${underground.y - sy(150)}V${underground.y - sy(24)}`}/><text x={x} y={underground.y - sy(166)}>{link.id}-B · 地下安全落脚点</text><text className="hidden-route-note" x={x} y={underground.y + sy(58)}>与H01-A同世界X · 回程经S07永久梯井并直达复活点</text></g>;
+                    })}
+                    {RETURN_ROUTE_LINKS.map((link) => {
+                      const x = link.screen * STAGE.w + sx(link.localX);
+                      const floor = COLLIDERS.find((item) => item.id === link.undergroundFloor)!;
+                      const cap = COLLIDERS.find((item) => item.id === link.surfaceCap)!;
+                      return constructionPlane === "surface"
+                        ? <g key={`${link.id}-surface`} className="hidden-route-entry"><rect x={cap.x} y={cap.y - sy(42)} width={cap.w} height={sy(60)}/><path d={`M${x} ${cap.y + sy(28)}V${cap.y - sy(76)}m${-sx(16)} ${sy(18)}l${sx(16)} ${-sy(18)}l${sx(16)} ${sy(18)}`}/><text x={x} y={cap.y - sy(94)}>{link.id}-A · S07永久梯井出口</text><text className="hidden-route-note" x={x} y={cap.y + sy(62)}>单向爬出 · 切回地表 · 复活锚点 X{sx(420)}</text></g>
+                        : <g key={`${link.id}-underground`} className="hidden-route-landing"><path d={`M${x - sx(24)} ${floor.y}V${cap.y}M${x + sx(24)} ${floor.y}V${cap.y}${Array.from({ length: 6 }, (_, rung) => `M${x - sx(24)} ${floor.y - sy(24 + rung * 25)}H${x + sx(24)}`).join("")}`}/><text x={x} y={cap.y - sy(28)}>{link.id}-B · CLIMB LADDER ↑</text><text className="hidden-route-note" x={x} y={floor.y + sy(58)}>U03后上爬 · 单向井盖 · 出口直见复活点</text></g>;
                     })}
                   </g>
 
@@ -936,14 +1000,14 @@ export default function GateScreenS01() {
 
           <div className="screen-status">
             <span>当前施工 S{String(collider.screen + 1).padStart(2, "0")} · 已建 12/12 · X {collider.screen * STAGE.w}–{(collider.screen + 1) * STAGE.w}</span>
-            <b>绿色：实际碰撞 · 青色：单向平台 · 紫线：地下支路 · H01：隐藏层切换 · 接缝 {SCREEN_VALIDATION.seams}/11 + 地下 {SCREEN_VALIDATION.lowerSeams}/2</b>
+            <b>绿色：实际碰撞 · 青色：单向平台 · 紫线：地下支路 · H01：隐藏层切换 · 接缝 {SCREEN_VALIDATION.seams}/11 + 地下 {SCREEN_VALIDATION.lowerSeams}/3</b>
             <span>一区总宽 {REGION.w}px</span>
           </div>
         </section>
 
         <aside className="screen-right-panel">
           <div className="screen-detail-index">{collider.id}</div>
-          <small>{collider.kind.toUpperCase()} · S{String(collider.screen + 1).padStart(2, "0")}</small>
+          <small>{collider.kind.toUpperCase()} · S{String(collider.screen + 1).padStart(2, "0")}{collider.activation ? " · DYNAMIC BOSS GATE" : ""}</small>
           <h2>{collider.name}</h2>
           <p>{collider.note}</p>
           <dl>
@@ -951,7 +1015,8 @@ export default function GateScreenS01() {
             <div><dt>尺寸</dt><dd>{collider.w} × {collider.h}px</dd></div>
             <div><dt>落脚面</dt><dd>Y {collider.y}px</dd></div>
             <div><dt>所属屏</dt><dd>S{String(collider.screen + 1).padStart(2, "0")} · {REGION_SCREENS[collider.screen]}</dd></div>
-            <div><dt>类型</dt><dd>{{ solid: "实体地形", oneway: "单向穿越平台", boundary: "不可穿越边界" }[collider.kind]}</dd></div>
+            <div><dt>类型</dt><dd>{collider.activation ? "Boss战动态封门" : { solid: "实体地形", oneway: "单向穿越平台", boundary: "不可穿越边界" }[collider.kind]}</dd></div>
+            {collider.activation && <><div><dt>战前</dt><dd>碰撞解除</dd></div><div><dt>开战</dt><dd>碰撞启用</dd></div><div><dt>击杀后</dt><dd>碰撞解除</dd></div></>}
           </dl>
           <section>
             <small>BUILDING PARTS · S{String(collider.screen + 1).padStart(2, "0")}</small>
@@ -964,12 +1029,12 @@ export default function GateScreenS01() {
             <b>{collider.route === "surface" ? `${hiddenTransitionDetail.id}-A · 地表入口` : `${hiddenTransitionDetail.id}-B · 地下落脚`}</b>
             <span>世界 X {hiddenTransitionDetail.screen * STAGE.w + sx(hiddenTransitionDetail.localX)}</span>
             <span>调查后开启 · {hiddenTransitionDetail.collisionReleaseMs}ms释放碰撞 · {hiddenTransitionDetail.openingDurationMs}ms完成特效</span>
-            <span>回程：S06 永久梯井</span>
+            <span>回程：S07 西侧永久梯井 → 复活锚点</span>
           </section>}
           <section className="implementation-notes">
             <small>IMPLEMENTATION NOTES</small>
             <b>连续坐标：S0n 世界 X = (n−1)×{STAGE.w} + 本地</b>
-            <span>J01–J11 主路与 U01–U02 地下通道均验证左右碰撞顶面、底面和世界X一致；H01-A/H01-B 验证同一世界X、安全落差与摄影机切层。</span>
+            <span>J01–J11 主路与 U01–U03 地下通道均验证左右碰撞顶面、底面和世界X一致；H01-A/H01-B 验证同一世界X、安全落差与摄影机切层，S07梯井验证爬出后可直接看见复活锚点。</span>
             {constructionDetail
               ? <><span><b>{constructionDetail.role}</b>：{constructionDetail.gameplayNote}</span><span>入口 Y={sy(constructionDetail.entryY)} / 出口 Y={sy(constructionDetail.exitY)}；主路线从本地 X0 连续绘制至 X1672。</span></>
               : <span>S01–S02 保留已确认的破庙—村缘引道、同高地板和连续雾层。</span>}

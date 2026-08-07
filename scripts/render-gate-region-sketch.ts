@@ -1,8 +1,8 @@
 import path from "node:path";
 import { mkdir } from "node:fs/promises";
 import sharp from "sharp";
-import { ADDITIONAL_GATE_CONSTRUCTION, type ConstructionBuildingSpec, type ConstructionColliderSpec } from "../app/map/gate/construction";
-import { GATE_SCREENS } from "../app/map/gate/screens";
+import { ADDITIONAL_GATE_CONSTRUCTION, type ConstructionBuildingSpec, type ConstructionColliderSpec } from "../app/map/gate/construction.ts";
+import { GATE_SCREENS } from "../app/map/gate/screens.ts";
 
 const root = process.cwd();
 const outputDir = path.join(root, "public/assets/maps/gate/region-sketch");
@@ -149,9 +149,9 @@ for (const [index] of GATE_SCREENS.entries()) {
 }
 await sharp({ create: { width: tileW * 4, height: tileH * 3, channels: 3, background: { r: 239, g: 233, b: 220 } } }).composite(sheetComposites).png().toFile(path.join(outputDir, "s01-s12-contact-sheet.png"));
 
-// S04-S06 hidden region is a separate one-screen-high art strip.  It is never
+// S04-S07 hidden region is a separate one-screen-high art strip.  It is never
 // baked into the surface images, so the surface camera cannot reveal it.
-const undergroundScreens = screens.filter((screen) => screen.screen >= 3 && screen.screen <= 5);
+const undergroundScreens = screens.filter((screen) => screen.screen >= 3 && screen.screen <= 6);
 const UNDERGROUND_W = W * undergroundScreens.length;
 const undergroundSvg = (body: string, opaque = false) => Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${UNDERGROUND_W}" height="${H}" viewBox="0 0 ${UNDERGROUND_W} ${H}">${opaque ? `<rect width="${UNDERGROUND_W}" height="${H}" fill="#d9dddc"/>` : ""}${body}</svg>`);
 const undergroundBackgroundParts = [
@@ -177,6 +177,7 @@ for (const screen of undergroundScreens) {
   }
   undergroundDecorationParts.push(`<g transform="translate(${ox + 180} 720)" stroke="#324547" stroke-width="7" opacity=".7"><path d="M0 0q30-100 62-170M35 0q48-72 94-118M${W - 330} 0q-18-120-70-190"/></g>`);
   if (screen.screen === 3) undergroundDecorationParts.push(`<g transform="translate(${ox + 720} 250)" fill="#202b2d" fill-opacity=".58" stroke="#303d3f" stroke-width="9"><path d="M0 0H140V530H0Z"/><path d="M14 0v500m112-500v500"/><path d="M70 80v380" stroke="#87719a" stroke-dasharray="20 14" opacity=".72"/><path d="M54 440l16 20l16-20" fill="none" stroke="#b39ac6"/></g>`);
+  if (screen.screen === 6) undergroundDecorationParts.push(`<g transform="translate(${ox + 100} 420)" fill="none" stroke="#202a2b" stroke-linecap="round"><path d="M18 350V35M122 350V35" stroke-width="13"/>${Array.from({ length: 10 }, (_, rung) => `<path d="M20 ${330 - rung * 29}H120" stroke-width="8"/>`).join("")}<path d="M0 170H140" stroke="#7a8e8f" stroke-width="9"/><path d="M0 0H140" stroke="#a4b2b1" stroke-width="13"/></g><g transform="translate(${ox + 330} 730)" stroke="#607778" fill="none" opacity=".8"><circle r="28" stroke-width="7"/><path d="M0-28V-70M-28 0H-65M28 0H65" stroke-width="6"/></g>`);
   undergroundEffectsParts.push(`<g stroke="#718f92" fill="none" stroke-width="7" opacity=".5">${Array.from({ length: 5 }, (_, row) => `<path d="M${ox} ${815 + row * 18}q110-20 220 0t220 0t220 0t220 0t220 0t220 0t220 0"/>`).join("")}</g>`);
 }
 const renderUndergroundLayer = async (name: string, parts: string[], opaque = false) => {
@@ -192,9 +193,9 @@ const undergroundFoundation = await renderUndergroundLayer("50-foundation.png", 
 const undergroundComposite = await sharp(undergroundBackground).composite([
   { input: undergroundArchitecture }, { input: undergroundDecoration }, { input: undergroundEffects }, { input: undergroundFoundation },
 ]).png().toBuffer();
-await sharp(undergroundComposite).toFile(path.join(undergroundDir, "s04-s06-hidden-region.png"));
+await sharp(undergroundComposite).toFile(path.join(undergroundDir, "s04-s07-hidden-region.png"));
 for (const [index, screen] of undergroundScreens.entries()) {
   await sharp(undergroundComposite).extract({ left: index * W, top: 0, width: W, height: H }).png().toFile(path.join(undergroundScreensDir, `${GATE_SCREENS[screen.screen].id}.png`));
 }
 
-console.log(`Gate region sketch exported: surface ${TOTAL_W}x${H}; hidden S04-S06 ${UNDERGROUND_W}x${H}; both use 5 separate layers.`);
+console.log(`Gate region sketch exported: surface ${TOTAL_W}x${H}; hidden S04-S07 ${UNDERGROUND_W}x${H}; both use 5 separate layers.`);

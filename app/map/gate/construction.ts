@@ -8,6 +8,8 @@ export type ConstructionColliderSpec = {
   y: number;
   w: number;
   h: number;
+  /** Optional top-right walkable Y for a continuous solid slope. */
+  slopeEndY?: number;
   note: string;
   route?: "surface" | "underground";
   activation?: {
@@ -94,6 +96,10 @@ const floor = (id: string, name: string, x: number, y: number, w: number, note: 
 
 const slab = (id: string, name: string, x: number, y: number, w: number, note: string, h = 48): ConstructionColliderSpec => ({
   id, name, kind: "solid", x, y, w, h, note,
+});
+
+const slopeFloor = (id: string, name: string, x: number, y: number, endY: number, w: number, note: string): ConstructionColliderSpec => ({
+  id, name, kind: "solid", x, y, w, h: 941 - y, slopeEndY: endY, note,
 });
 
 export const GATE_HIDDEN_TRANSITIONS: readonly ConstructionLayerTransitionSpec[] = [{
@@ -260,9 +266,9 @@ export const ADDITIONAL_GATE_CONSTRUCTION: readonly GateConstructionSpec[] = [
   {
     id: "s09", screen: 8, name: "雨亭箭廊", role: "能力验证", entryY: 260, exitY: 600, entryCollider: "C67", exitCollider: "C71",
     mainPath: "M0 260L260 360H680L720 470H1100L1180 560H1460L1672 600", upperPaths: ["M260 160H500", "M720 270H960", "M1180 380H1420"],
-    gameplayNote: "从S08高地出门后分三段下山；三座雨亭同时提供弩线掩体和安全落脚，最终回到前庭常规高程。",
+    gameplayNote: "从S08高地出门后立即沿连续斜面下山，不设置入口台阶；三座雨亭同时提供弩线掩体和安全落脚，最终回到前庭常规高程。",
     colliders: [
-      floor("C67", "高地箭廊西口", 0, 260, 260, "承接S08高地东门"), floor("C68", "第一下山箭线地板", 260, 360, 420, "第一段下山并验证瞬步"),
+      slopeFloor("C67", "箭廊入口连续下坡", 0, 260, 360, 260, "承接S08高地东门并立即下坡；取消入口水平台阶"), floor("C68", "第一下山箭线地板", 260, 360, 420, "承接入口斜面并验证瞬步"),
       floor("C69", "第二下山箭线地板", 680, 470, 420, "第二段下降并增加交错射线"), floor("C70", "第三下山箭线地板", 1100, 560, 360, "最后一段回到前庭高程"),
       floor("C71", "前庭接驳地板", 1460, 600, 212, "贴齐S10入口"),
       { id: "C72", name: "高地西雨亭屋面", kind: "oneway", x: 260, y: 160, w: 240, h: 18, note: "第一弩手平台" },

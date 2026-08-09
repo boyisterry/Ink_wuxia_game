@@ -321,8 +321,6 @@ button {
   opacity: 0.2;
 }
 .gate-stage .player {
-  /* Align soles to collider tops; avoid tutorial ink-drip foot-pad offset. */
-  --foot-pad: 4%;
   width: clamp(132px, 18vh, 176px);
   bottom: calc(var(--ground-bottom, 0px) + var(--air-y, 0px));
   z-index: 7;
@@ -421,15 +419,23 @@ button {
   }
 }
 .player {
-  /* player.png soles sit ~14% above the bitmap bottom once ink drips are ignored. */
-  --foot-pad: 14%;
+  /* The element's bottom edge IS the collision line. Every art layer frames its
+     soles at a different height above its own bitmap bottom, so the offset has
+     to live on the layer, not on the element — one shared value would leave
+     whichever layer it was not tuned for hovering above the ground. */
+  --sole-idle: 14.1%;
+  --sole-run: 7%;
+  --sole-attack: 10.5%;
+  --sole-roll: 9%;
+  --sole-rise: 7.6%;
+  --sole-fall: 2.8%;
+  --sole-land: 5.2%;
   position: absolute;
   width: clamp(190px, 24vw, 360px);
   aspect-ratio: 1.6;
   z-index: 6;
   bottom: calc(var(--stage-ground) + var(--air-y, 0px));
   transform: translateX(-50%);
-  translate: 0 var(--foot-pad);
   transition:
     filter 0.15s,
     bottom 0.03s linear;
@@ -1084,17 +1090,20 @@ kbd {
   pointer-events: none;
   filter: drop-shadow(0 16px 4px #0005);
   transform-origin: 48% 78%;
+  translate: 0 var(--sole-idle);
 }
 .player.idle .actor-visual img {
-  animation: player-breathe 2.6s ease-in-out infinite;
+  animation: player-breathe 3.4s ease-in-out infinite;
+  /* Pivot at the soles: breathing must expand the torso, not lift the feet. */
+  transform-origin: 50% 96%;
 }
 @keyframes player-breathe {
   0%,
   100% {
-    transform: translateY(0) scale(1);
+    transform: scale(1, 1);
   }
   50% {
-    transform: translateY(-4px) scale(1.008, 0.992);
+    transform: scale(0.996, 1.012);
   }
 }
 .player.running .actor-visual img {
@@ -1457,6 +1466,7 @@ kbd {
   background-position: 0 0;
   background-size: auto 100%;
   pointer-events: none;
+  translate: 0 var(--sole-run);
 }
 .player.starting .actor-visual img,
 .player.running .actor-visual img,
@@ -1525,6 +1535,7 @@ kbd {
   background-position: 0 0;
   background-size: auto 100%;
   pointer-events: none;
+  translate: 0 var(--sole-attack);
 }
 .player.combo-1 .actor-visual img,
 .player.combo-2 .actor-visual img {
@@ -1576,6 +1587,7 @@ kbd {
   background-position: 0 0;
   background-size: auto 100%;
   pointer-events: none;
+  translate: 0 var(--sole-land);
 }
 .player.jumping .actor-visual img,
 .player.falling .actor-visual img,
@@ -1592,16 +1604,19 @@ kbd {
   background-image: url("/assets/player-jump-rise.webp");
   background-size: 1500% 100%;
   animation: player-jump-rise-sprite 0.32s steps(14, end) 1 both;
+  translate: 0 var(--sole-rise);
 }
 .player.falling .jump-sprite {
   background-image: url("/assets/player-jump-fall.webp");
   background-size: 600% 100%;
   animation: player-jump-fall-sprite 0.28s steps(5, end) 1 both;
+  translate: 0 var(--sole-fall);
 }
 .player.landing .jump-sprite {
   background-image: url("/assets/player-jump-land.webp");
   background-size: 1000% 100%;
   animation: player-jump-land-sprite 0.32s steps(9, end) 1 both;
+  translate: 0 var(--sole-land);
 }
 .player.jumping .run-sprite,
 .player.falling .run-sprite,
@@ -1647,16 +1662,19 @@ kbd {
   background-image: url("/assets/player-run-jump-rise.webp");
   background-size: 1100% 100%;
   animation: player-run-jump-rise-sprite 0.3s steps(10, end) 1 both;
+  translate: 0 9.7%;
 }
 .player.running-jump.falling .jump-sprite {
   background-image: url("/assets/player-run-jump-fall.webp");
   background-size: 800% 100%;
   animation: player-run-jump-fall-sprite 0.27s steps(7, end) 1 both;
+  translate: 0 10.1%;
 }
 .player.running-jump.landing .jump-sprite {
   background-image: url("/assets/player-run-jump-land.webp");
   background-size: 700% 100%;
   animation: player-run-jump-land-sprite 0.32s steps(6, end) 1 both;
+  translate: 0 6.9%;
 }
 @keyframes player-run-jump-rise-sprite {
   from {
@@ -1692,6 +1710,7 @@ kbd {
   background-repeat: no-repeat;
   background-position: 0 0;
   pointer-events: none;
+  translate: 0 var(--sole-roll);
 }
 .player.rolling {
   animation: none;
@@ -1718,5 +1737,878 @@ kbd {
   }
   to {
     background-position: 100% 0;
+  }
+}
+
+/* Enemy demonstration arena ------------------------------------------------ */
+.tutorial-stage .demo-enemy {
+  right: auto;
+  bottom: var(--stage-ground);
+  z-index: 6;
+  aspect-ratio: 1.5;
+  translate: -50% var(--enemy-foot-offset, 4%);
+  transform: none;
+  animation: none;
+  transition:
+    left 0.07s linear,
+    width 0.2s ease,
+    opacity 0.48s ease,
+    filter 0.16s ease;
+  will-change: left;
+}
+.demo-enemy .enemy-visual {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-origin: 50% 88%;
+  animation: demo-enemy-breathe 3.2s ease-in-out infinite;
+}
+.demo-enemy .enemy-sprite {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+  filter: contrast(1.08) drop-shadow(0 13px 5px #0006);
+  transform-origin: 50% 85%;
+}
+.demo-enemy.enemy-facing-right .enemy-sprite {
+  transform: scaleX(-1);
+}
+.demo-enemy.hit {
+  transform: none;
+  filter: sepia(1) saturate(5) drop-shadow(0 0 20px #c72920);
+}
+.demo-enemy.vanquished {
+  opacity: 0;
+  transform: none;
+  filter: blur(10px);
+}
+.demo-enemy.vanquished .enemy-visual {
+  transform: translateY(-20px) scale(1.18);
+}
+.demo-enemy.winding-up:after {
+  display: none;
+}
+.demo-enemy.winding-up img,
+.demo-enemy.phase-active img {
+  animation: none;
+}
+.demo-enemy.phase-windup .enemy-visual {
+  animation: demo-enemy-windup 0.38s ease-in-out infinite alternate;
+}
+.demo-enemy.phase-windup .enemy-sprite {
+  filter: contrast(1.3) sepia(0.7) saturate(2.2) drop-shadow(0 0 15px #8e1612);
+}
+.demo-enemy.phase-active.motion-stationary .enemy-visual,
+.demo-enemy.phase-active.motion-ground-target .enemy-visual,
+.demo-enemy.phase-active.motion-arena .enemy-visual,
+.demo-enemy.phase-active.motion-pull .enemy-visual {
+  animation: demo-enemy-cast 0.42s cubic-bezier(0.2, 0.8, 0.25, 1) both;
+}
+.demo-enemy.phase-active.motion-lunge .enemy-visual,
+.demo-enemy.phase-active.motion-dash .enemy-visual {
+  animation: demo-enemy-lunge 0.36s cubic-bezier(0.15, 0.8, 0.2, 1) both;
+}
+.demo-enemy.phase-active.motion-projectile .enemy-visual {
+  animation: demo-enemy-recoil 0.38s ease-out both;
+}
+.demo-enemy.phase-active.motion-teleport .enemy-visual {
+  animation: demo-enemy-teleport 0.42s steps(2, end) both;
+}
+.demo-enemy.phase-active.motion-leap .enemy-visual {
+  animation: demo-enemy-leap 0.5s ease-in-out both;
+}
+.demo-enemy.phase-recover .enemy-visual {
+  animation: demo-enemy-recover 0.46s ease-out both;
+}
+@keyframes demo-enemy-breathe {
+  50% {
+    transform: scale(1.012, 1.025);
+  }
+}
+@keyframes demo-enemy-windup {
+  from {
+    transform: translateX(0) scale(1);
+  }
+  to {
+    transform: translateX(2%) scale(1.04, 0.98);
+  }
+}
+@keyframes demo-enemy-cast {
+  35% {
+    transform: translateY(-3%) scale(1.07);
+  }
+  72% {
+    transform: translateY(2%) scale(1.03, 0.96);
+  }
+}
+@keyframes demo-enemy-lunge {
+  35% {
+    transform: translateX(-3%) skewX(-4deg) scale(1.05);
+  }
+  70% {
+    transform: translateX(5%) skewX(3deg) scale(1.08, 0.96);
+  }
+}
+@keyframes demo-enemy-recoil {
+  45% {
+    transform: translateX(3%) rotate(2deg) scale(0.98);
+  }
+}
+@keyframes demo-enemy-teleport {
+  0%,
+  55% {
+    opacity: 0.18;
+    filter: blur(5px);
+  }
+  56%,
+  100% {
+    opacity: 1;
+    filter: none;
+  }
+}
+@keyframes demo-enemy-leap {
+  45% {
+    transform: translateY(-10%) rotate(-3deg) scale(1.06);
+  }
+}
+@keyframes demo-enemy-recover {
+  from {
+    transform: translateY(2%) scale(1.04, 0.94);
+    opacity: 0.82;
+  }
+}
+
+.demo-enemy .enemy-bar {
+  top: -9px;
+  left: 50%;
+  width: clamp(170px, 72%, 260px);
+  translate: -50% 0;
+}
+.demo-enemy .enemy-bar b {
+  overflow: hidden;
+  padding: 0 6px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.enemy-intent {
+  position: absolute;
+  left: 50%;
+  top: -63px;
+  z-index: 5;
+  width: clamp(215px, 92%, 300px);
+  min-height: 45px;
+  display: grid;
+  grid-template-columns: 31px minmax(0, 1fr);
+  align-items: center;
+  gap: 0 8px;
+  padding: 5px 9px;
+  opacity: 0;
+  translate: -50% 0;
+  color: #f7f1e5;
+  background: #17130fe8;
+  border: 1px solid #e5dac8;
+  border-left: 4px solid #c28c54;
+  box-shadow: 0 5px 14px #0006;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+.phase-windup .enemy-intent,
+.phase-active .enemy-intent,
+.phase-recover .enemy-intent {
+  opacity: 1;
+}
+.enemy-intent > span:first-child {
+  grid-row: 1 / span 2;
+  width: 29px;
+  height: 29px;
+  display: grid;
+  place-items: center;
+  border: 2px solid currentColor;
+  color: #ead7b8;
+  font: 800 16px/1 "STKaiti", "KaiTi", serif;
+}
+.enemy-intent strong {
+  overflow: hidden;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.enemy-intent small {
+  overflow: hidden;
+  color: #bfb6a8;
+  font-size: 9px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.enemy-intent[data-kind="heavy"] {
+  border: 2px double #ffded8;
+  border-left: 7px double #d02b22;
+  background: #39130ff0;
+  animation: heavy-intent-pulse 0.52s ease-in-out infinite alternate;
+}
+.enemy-intent[data-kind="heavy"] > span:first-child {
+  color: #ff8378;
+  border-style: double;
+  border-width: 4px;
+}
+.enemy-intent .intent-idle {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+@keyframes heavy-intent-pulse {
+  to {
+    box-shadow: 0 0 18px #bd241bb3;
+  }
+}
+
+.enemy-effect {
+  position: absolute;
+  z-index: 7;
+  aspect-ratio: 1.5;
+  opacity: 0;
+  pointer-events: none;
+  will-change: transform, opacity, filter;
+}
+.enemy-effect[data-align="center"][data-vertical="center"] {
+  translate: -50% 50%;
+}
+.enemy-effect[data-align="center"][data-vertical="ground"] {
+  translate: -50% 0;
+}
+.enemy-effect[data-align="forward"][data-facing="right"][data-vertical="center"] {
+  translate: 0 50%;
+}
+.enemy-effect[data-align="forward"][data-facing="left"][data-vertical="center"] {
+  translate: -100% 50%;
+}
+.enemy-effect[data-align="forward"][data-facing="right"][data-vertical="ground"] {
+  translate: 0 0;
+}
+.enemy-effect[data-align="forward"][data-facing="left"][data-vertical="ground"] {
+  translate: -100% 0;
+}
+.enemy-effect[data-facing="right"] {
+  transform-origin: 0 50%;
+}
+.enemy-effect[data-facing="left"] {
+  transform-origin: 100% 50%;
+}
+.enemy-effect img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  mix-blend-mode: normal;
+  filter: drop-shadow(0 0 8px #a5231e7d);
+}
+.enemy-effect[data-facing="left"] img {
+  transform: scaleX(-1);
+}
+.enemy-effect.motion-stationary,
+.enemy-effect.motion-lunge {
+  animation: enemy-effect-sweep var(--effect-active-ms, 460ms) ease-out both;
+}
+.enemy-effect.motion-dash {
+  animation: enemy-effect-dash var(--effect-active-ms, 620ms) ease-out both;
+}
+.enemy-effect.motion-projectile {
+  animation: enemy-effect-projectile var(--effect-active-ms, 700ms) linear both;
+}
+.enemy-effect.motion-ground-target {
+  animation: enemy-effect-ground var(--effect-active-ms, 720ms) ease-out both;
+}
+.enemy-effect.motion-teleport {
+  animation: enemy-effect-teleport var(--effect-active-ms, 520ms) steps(3, end) both;
+}
+.enemy-effect.motion-pull {
+  animation: enemy-effect-pull var(--effect-active-ms, 700ms) ease-in-out both;
+}
+.enemy-effect.motion-arena {
+  animation: enemy-effect-arena var(--effect-active-ms, 1100ms) ease-out both;
+}
+.enemy-effect.motion-leap {
+  animation: enemy-effect-leap var(--effect-active-ms, 640ms) ease-in-out both;
+}
+@keyframes enemy-effect-sweep {
+  0% {
+    opacity: 0;
+    transform: rotate(-24deg) scale(0.35);
+  }
+  42% {
+    opacity: 0.95;
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(24deg) scale(1.18);
+  }
+}
+@keyframes enemy-effect-dash {
+  12% {
+    opacity: 0.9;
+    transform: scaleX(0.45);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(var(--effect-travel-x, -180px)) scaleX(1.45);
+  }
+}
+@keyframes enemy-effect-projectile {
+  0% {
+    opacity: 0;
+    transform: translateX(0) scale(0.28);
+  }
+  18% {
+    opacity: 1;
+  }
+  88% {
+    opacity: 0.95;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(var(--effect-travel-x, -420px)) scale(0.62);
+  }
+}
+@keyframes enemy-effect-ground {
+  0% {
+    opacity: 0;
+    transform: translateX(var(--effect-travel-x, 0)) translateY(12%)
+      scale(0.25, 0.1);
+  }
+  48% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(var(--effect-travel-x, 0)) translateY(-4%)
+      scale(1.15, 1.55);
+  }
+}
+@keyframes enemy-effect-teleport {
+  0%,
+  44% {
+    opacity: 0.85;
+    transform: scale(0.75);
+    filter: blur(1px);
+  }
+  45%,
+  100% {
+    opacity: 0;
+    transform: translateX(var(--effect-travel-x, -120px)) scale(1.25);
+    filter: blur(7px);
+  }
+}
+@keyframes enemy-effect-pull {
+  0% {
+    opacity: 0;
+    transform: translateX(var(--effect-travel-x, -300px)) scaleX(1.35);
+  }
+  52% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(0) scaleX(0.4);
+  }
+}
+@keyframes enemy-effect-arena {
+  0% {
+    opacity: 0;
+    transform: translateY(18%) scale(0.2);
+  }
+  38% {
+    opacity: 0.82;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(8%) scale(2.9);
+  }
+}
+@keyframes enemy-effect-leap {
+  0% {
+    opacity: 0;
+    transform: translateY(32%) rotate(-12deg) scale(0.4);
+  }
+  48% {
+    opacity: 0.95;
+    transform: translateY(-34%) rotate(5deg) scale(0.9);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--effect-travel-x, -150px), 26%) scale(1.3);
+  }
+}
+
+/* Bottom drawer keeps the selected in-game sprite visible on the bridge. */
+.enemy-select-overlay {
+  align-content: end;
+  justify-items: stretch;
+  padding: 22px;
+  text-align: left;
+  background: linear-gradient(
+    180deg,
+    #f3efe40d 0%,
+    #f3efe428 36%,
+    #0d0b08a8 69%,
+    #0d0b08d9 100%
+  );
+  backdrop-filter: blur(0.7px);
+}
+.enemy-select-heading {
+  position: absolute;
+  left: clamp(78px, 8vw, 124px);
+  top: 22px;
+  max-width: 520px;
+  padding: 10px 15px;
+  color: #231f1a;
+  background: linear-gradient(90deg, #f3eee2d9 70%, transparent);
+  border-left: 4px solid var(--red);
+  text-shadow: 0 1px 0 #fff9;
+}
+.enemy-select-heading .eyebrow {
+  margin-bottom: 2px;
+}
+.enemy-select-heading h1 {
+  margin: 0;
+  font: 800 clamp(30px, 4vw, 52px)/1.05 "STKaiti", "KaiTi", serif;
+  letter-spacing: 0.12em;
+}
+.enemy-select-heading > p:last-child {
+  margin: 3px 0 0;
+  color: #5b5348;
+  font-size: 11px;
+  letter-spacing: 0.09em;
+}
+.enemy-picker-drawer {
+  width: min(1110px, 100%);
+  min-height: 278px;
+  max-height: 48%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 34%);
+  gap: 14px;
+  justify-self: center;
+  padding: 13px;
+  overflow: hidden;
+  color: #201d19;
+  background:
+    linear-gradient(115deg, #f6f1e5f5, #ded5c4f2),
+    var(--paper);
+  border: 1px solid #28231d;
+  border-top: 4px solid #7f201a;
+  box-shadow:
+    0 -12px 36px #0007,
+    inset 0 0 0 4px #fff8;
+}
+.enemy-picker {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: 45px minmax(0, 1fr);
+  gap: 9px;
+}
+.enemy-tier-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+.enemy-tier-tabs button {
+  min-width: 0;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border: 1px solid #71695d;
+  color: #514a40;
+  background: #e7dfd0;
+  cursor: pointer;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+}
+.enemy-tier-tabs button b {
+  min-width: 22px;
+  padding: 2px 5px;
+  color: #efe9de;
+  background: #3d3831;
+  font: 700 10px/1.4 ui-monospace, monospace;
+  text-align: center;
+}
+.enemy-tier-tabs button.selected,
+.enemy-tier-tabs button[aria-selected="true"] {
+  color: #fff9ef;
+  background: #27231e;
+  border-color: #a02c24;
+  box-shadow: inset 4px 0 0 var(--red);
+}
+.enemy-tier-tabs button.selected b {
+  color: #fff;
+  background: var(--red);
+}
+.enemy-tier-tabs button:focus-visible,
+.enemy-option:focus-visible,
+.result-secondary-button:focus-visible {
+  outline: 3px solid #d34338;
+  outline-offset: 2px;
+}
+.enemy-option-grid {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-content: start;
+  gap: 7px;
+  padding: 2px;
+  overflow-y: auto;
+  scrollbar-color: #8e241e #d8cdbc;
+}
+.enemy-option {
+  min-width: 0;
+  min-height: 54px;
+  display: grid;
+  grid-template-columns: 31px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  position: relative;
+  padding: 6px 7px;
+  border: 1px solid #807669;
+  color: #373129;
+  background: #f4eee1c9;
+  cursor: pointer;
+  text-align: left;
+}
+.enemy-option:hover {
+  background: #fffaf0;
+  border-color: #392f28;
+}
+.enemy-option > i {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #3d3730;
+  color: #eee6d7;
+  background: #2c2823;
+  font: 700 16px/1 "STKaiti", "KaiTi", serif;
+  font-style: normal;
+}
+.enemy-option > span {
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.enemy-option > small {
+  position: absolute;
+  right: 4px;
+  top: 3px;
+  color: #a62b23;
+  font-size: 8px;
+  font-weight: 800;
+}
+.enemy-option.selected,
+.enemy-option[aria-pressed="true"] {
+  border: 2px solid #8d241d;
+  background: #fff9ed;
+  box-shadow: inset 0 -3px 0 #b33329;
+}
+.enemy-option.selected > i {
+  color: #fff8ed;
+  background: var(--red);
+  border-color: #6f1712;
+}
+.enemy-selection-summary {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  gap: 7px;
+  padding: 9px 11px 10px;
+  overflow: hidden;
+  background: #25211c;
+  border: 1px solid #080706;
+  color: #f1eadf;
+}
+.enemy-summary-title {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid #817568;
+  padding-bottom: 6px;
+}
+.enemy-summary-title > span {
+  padding: 3px 6px;
+  border: 1px solid #c04a40;
+  color: #ef8a80;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+}
+.enemy-summary-title h2 {
+  margin: 0;
+  overflow: hidden;
+  font: 700 23px/1.05 "STKaiti", "KaiTi", serif;
+  letter-spacing: 0.08em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.enemy-summary-title > b {
+  color: #bdb3a5;
+  font-size: 10px;
+  white-space: nowrap;
+}
+.enemy-selection-summary > p {
+  margin: 0;
+  color: #bdb4a6;
+  font-size: 10px;
+  line-height: 1.45;
+}
+.enemy-attack-list {
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  margin: 0;
+  padding: 0 2px 0 0;
+  overflow-y: auto;
+  list-style: none;
+}
+.enemy-attack-list li {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 23px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 5px;
+  border-left: 2px solid #c39560;
+  background: #ffffff0b;
+}
+.enemy-attack-list li[data-kind="heavy"] {
+  border-left: 5px double #e94d42;
+  background: #a927211f;
+}
+.enemy-attack-list li > span {
+  width: 21px;
+  height: 21px;
+  display: grid;
+  place-items: center;
+  border: 1px solid currentColor;
+  color: #dbb884;
+  font-size: 10px;
+}
+.enemy-attack-list li[data-kind="heavy"] > span {
+  color: #ff776c;
+}
+.enemy-attack-list strong {
+  overflow: hidden;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.enemy-attack-list small {
+  color: #9f968a;
+  font-size: 8px;
+  white-space: nowrap;
+}
+.enemy-start-button {
+  width: 100%;
+  min-width: 0;
+  min-height: 48px;
+  flex: none;
+  outline-offset: -7px;
+  box-shadow: 4px 4px 0 #781b17bf;
+  font-size: 18px;
+}
+.result-actions {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 15px;
+}
+.result-secondary-button {
+  min-width: 150px;
+  padding: 8px 16px;
+  border: 2px solid #3b352d;
+  color: #2f2a24;
+  background: #e8dfd0;
+  cursor: pointer;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+.touch-controls.inactive {
+  pointer-events: none;
+  opacity: 0.35;
+}
+
+@media (max-width: 760px) {
+  .tutorial-stage .demo-enemy {
+    max-width: 76vw;
+  }
+  .demo-enemy .enemy-bar {
+    width: clamp(150px, 76%, 210px);
+  }
+  .enemy-intent {
+    top: -52px;
+    width: 205px;
+    min-height: 38px;
+    grid-template-columns: 27px minmax(0, 1fr);
+    padding: 4px 6px;
+  }
+  .enemy-intent > span:first-child {
+    width: 25px;
+    height: 25px;
+    font-size: 13px;
+  }
+  .enemy-intent strong {
+    font-size: 10px;
+  }
+  .enemy-intent small {
+    display: none;
+  }
+  .enemy-select-overlay {
+    padding: 8px;
+  }
+  .enemy-select-heading {
+    left: 12px;
+    top: 58px;
+    max-width: 88%;
+    padding: 7px 11px;
+  }
+  .enemy-select-heading h1 {
+    font-size: 31px;
+  }
+  .enemy-select-heading > p:last-child {
+    display: none;
+  }
+  .enemy-picker-drawer {
+    width: 100%;
+    height: min(61%, 430px);
+    min-height: 0;
+    max-height: none;
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(150px, 1fr) minmax(145px, 0.9fr);
+    gap: 7px;
+    padding: 8px;
+    overflow-y: auto;
+  }
+  .enemy-picker {
+    grid-template-rows: 42px minmax(0, 1fr);
+    gap: 6px;
+  }
+  .enemy-tier-tabs button {
+    min-height: 42px;
+    gap: 5px;
+    padding: 3px;
+    font-size: 10px;
+    letter-spacing: 0.04em;
+  }
+  .enemy-tier-tabs button b {
+    min-width: 19px;
+    padding: 1px 4px;
+  }
+  .enemy-option-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 5px;
+  }
+  .enemy-option {
+    min-height: 46px;
+    grid-template-columns: 25px minmax(0, 1fr);
+    gap: 4px;
+    padding: 4px;
+  }
+  .enemy-option > i {
+    width: 24px;
+    height: 24px;
+    font-size: 13px;
+  }
+  .enemy-option > span {
+    font-size: 9px;
+    letter-spacing: 0;
+  }
+  .enemy-selection-summary {
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    gap: 5px;
+    padding: 7px 8px;
+  }
+  .enemy-selection-summary > p {
+    display: none;
+  }
+  .enemy-summary-title h2 {
+    font-size: 19px;
+  }
+  .enemy-attack-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 3px;
+  }
+  .enemy-attack-list li {
+    grid-template-columns: 20px minmax(0, 1fr);
+    padding: 2px 4px;
+  }
+  .enemy-attack-list li > span {
+    width: 18px;
+    height: 18px;
+    font-size: 9px;
+  }
+  .enemy-attack-list strong {
+    font-size: 9px;
+  }
+  .enemy-attack-list small {
+    display: none;
+  }
+  .enemy-start-button {
+    min-height: 46px;
+    font-size: 16px;
+  }
+  .chapter-menu-button.tutorial-switch {
+    top: 86px;
+  }
+  .result-actions {
+    width: min(330px, 90%);
+    flex-direction: column;
+    gap: 10px;
+  }
+  .result-actions .start-button,
+  .result-secondary-button {
+    width: 100%;
+    min-width: 0;
+    min-height: 52px;
+  }
+}
+
+@media (max-height: 600px) {
+  .enemy-select-heading {
+    top: 8px;
+    transform: scale(0.82);
+    transform-origin: left top;
+  }
+  .enemy-picker-drawer {
+    height: min(78%, 315px);
+    max-height: none;
+    grid-template-columns: minmax(0, 1fr) minmax(245px, 38%);
+    grid-template-rows: 1fr;
+  }
+  .enemy-selection-summary > p {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .demo-enemy,
+  .demo-enemy .enemy-visual,
+  .enemy-effect,
+  .enemy-intent {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+  }
+  .enemy-intent[data-kind="heavy"] {
+    box-shadow: 0 0 0 3px #bd241b80;
   }
 }

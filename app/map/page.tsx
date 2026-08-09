@@ -384,6 +384,8 @@ type PhysicalStep = {
   from: PointU;
   to: PointU;
   requires?: ProgressionId[];
+  /** Scripted landing temporarily suppresses fall damage for an intentional long drop. */
+  fallProtection?: "story";
   deviceX?: number;
   note?: string;
 };
@@ -992,7 +994,7 @@ const physicalKey = (from: string, to: string) => `${from}>${to}`;
 
 /** Explicit routes for vertical, one-way, water and compound transitions. */
 const PHYSICAL_OVERRIDES: Record<string, PhysicalOverride> = {
-  "g7>g5": { steps: [{ mode: "drop", from: point(545, 805), to: point(570, 1030), note: "柴棚落口" }], returnVia: "g5 → g11 → g3" },
+  "g7>g5": { steps: [{ mode: "drop", from: point(545, 805), to: point(570, 1030), fallProtection: "story", note: "柴棚落井；过场接管并无伤落地" }], returnVia: "g5 → g11 → g3" },
   "g11>g3": { steps: [{ mode: "ladder", from: point(920, 1030), to: point(920, 790), deviceX: 920 }] },
   "g9>g4": { steps: [{ mode: "ladder", from: point(1065, 785), to: point(1065, 560), deviceX: 1065 }] },
   "t8>t7": { steps: [{ mode: "ladder", from: point(1835, 780), to: point(1835, 510), deviceX: 1835 }] },
@@ -1012,7 +1014,7 @@ const PHYSICAL_OVERRIDES: Record<string, PhysicalOverride> = {
       { mode: "elevator", from: point(4200, 1010), to: point(4200, 1140), deviceX: 4200 },
     ],
   },
-  "m8>m5": { steps: [{ mode: "smash_drop", from: point(3480, 750), to: point(3480, 1130), requires: ["ground_slam"], note: "矿底脆地" }], returnVia: "m5 → m11 → m9" },
+  "m8>m5": { steps: [{ mode: "smash_drop", from: point(3480, 750), to: point(3480, 1130), requires: ["ground_slam"], fallProtection: "story", note: "矿底脆地；破地过场接管并无伤落地" }], returnVia: "m5 → m11 → m9" },
   "m11>m9": {
     steps: [
       { mode: "ladder", from: point(3750, 1130), to: point(3750, 755), deviceX: 3750 },
@@ -1198,7 +1200,7 @@ const auditPhysicalStep = (step: PhysicalStep, link: RoomLink): PhysicalIssue[] 
   if (step.mode === "drop" || step.mode === "smash_drop") {
     if (!link.oneWay) issues.push({ severity: "error", message: "坠落连接必须标记为单向" });
     if (dy <= 0) issues.push({ severity: "error", message: "坠落终点必须低于起点" });
-    if (dy > PLAYER_METRICS.safeFall) issues.push({ severity: "warning", message: `落差 ${dy.toFixed(0)}u 超过安全值，需布置分段落脚或无伤落地` });
+    if (dy > PLAYER_METRICS.safeFall && step.fallProtection !== "story") issues.push({ severity: "warning", message: `落差 ${dy.toFixed(0)}u 超过安全值，需布置分段落脚或无伤落地` });
     if (step.mode === "smash_drop" && !step.requires?.includes("ground_slam")) issues.push({ severity: "error", message: "震地破口缺少震地击条件" });
   }
   if (step.mode === "wind") {
@@ -2319,6 +2321,7 @@ export default function MapDemo() {
                           · 横移 {link.horizontalDistance.toFixed(0)}u · 高差 {link.verticalDelta > 0 ? "+" : ""}{link.verticalDelta.toFixed(0)}u
                         </span>
                         {requirementIds.length > 0 && <small>条件：{requirementIds.map((id) => PROGRESSION_LABELS[id]).join(" · ")}</small>}
+                        {link.steps.some((step) => step.fallProtection === "story") && <small>保护：剧情接管 · 无坠落伤害</small>}
                         {link.oneWay && <small>单向 · 回程：{link.returnVia ?? "未定义"}</small>}
                         {link.issues.map((issue, index) => <small key={index} className={issue.severity}>{issue.message}</small>)}
                       </li>

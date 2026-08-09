@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from "react";
-import { ADDITIONAL_GATE_CONSTRUCTION, GATE_HIDDEN_TRANSITIONS, GATE_RETURN_TRANSITIONS, type ConstructionBuildingSpec } from "../construction";
+import { GATE_WALL_COLLISION } from "../../../gate-physics";
+import { ADDITIONAL_GATE_CONSTRUCTION, GATE_HIDDEN_TRANSITIONS, GATE_RETURN_TRANSITIONS, GATE_SHRINE_PLACEMENTS, type ConstructionBuildingSpec } from "../construction";
 import { GATE_SCREEN, GATE_SCREENS, GATE_SCREEN_NAMES } from "../screens";
 import "./screen.css";
 
@@ -20,6 +21,8 @@ type Collider = {
   h: number;
   /** Target-space top-right walkable Y for a continuous solid slope. */
   slopeEndY?: number;
+  /** Entering this solid from the lower side requires an explicit jump. */
+  requiresJump?: boolean;
   note: string;
   /** Zero-based screen index on the continuous canvas. */
   screen: number;
@@ -125,6 +128,7 @@ const sourceCollider = (
   route: "surface" | "underground" = "surface",
   activation?: Collider["activation"],
   slopeEndY?: number,
+  requiresJump = false,
 ): Collider => ({
   id,
   name,
@@ -135,6 +139,7 @@ const sourceCollider = (
   w: sx(x + w) - sx(x),
   h: sy(y + h) - sy(y),
   slopeEndY: slopeEndY === undefined ? undefined : sy(slopeEndY),
+  requiresJump,
   note,
   route,
   activation,
@@ -168,7 +173,7 @@ const COLLIDERS: Collider[] = [
   // —— S01 破庙残院 ——
   sourceCollider(0, "C01", "残院主地面", "solid", 0, 720, 1180, 221, "出生、神龛与基础移动的连续安全面"),
   sourceCollider(0, "C02", "东侧碎石缓坡", "solid", 1180, 700, 170, 241, "约46px高差，不触发落地硬直"),
-  sourceCollider(0, "C03", "破墙前台阶", "solid", 1350, SEAM.s01ToS02, 190, 267, "约60px高差；自然抬高出口视线"),
+  sourceCollider(0, "C03", "破墙前台阶", "solid", 1350, SEAM.s01ToS02, 190, 267, "约60px高差；进入破墙前台阶时必须跳跃", "surface", undefined, undefined, true),
   sourceCollider(0, "C04", "跨屏接驳地板", "solid", 1540, SEAM.s01ToS02, 132, 267, "与S02入口地板同高 Y=sy(674)，无缝拼接"),
   sourceCollider(0, "C05", "西侧封闭墙", "boundary", 0, 310, 46, 410, "出生屏不可向西离开"),
   sourceCollider(0, "C06", "坍塌木梁", "oneway", 500, 600, 230, 20, "距主地面约275px，原地跳可达"),
@@ -179,15 +184,15 @@ const COLLIDERS: Collider[] = [
   // Continuity: entry top == SEAM.s01ToS02; exit top == SEAM.s02ToS03 for S03 slope start.
   sourceCollider(1, "C09", "S02接驳入口", "solid", 0, SEAM.s01ToS02, 220, 267, "承接S01破墙出口；落脚面同高，禁止台阶缝"),
   sourceCollider(1, "C10", "村道主地面", "solid", 220, SEAM.s01ToS02, 500, 267, "民居前台活动区；低警戒刀客巡逻带"),
-  sourceCollider(1, "C11", "一级抬升石阶", "solid", 720, 660, 180, 281, "向山门缓坡过渡的第一级；高差约32源px"),
-  sourceCollider(1, "C12", "二级抬升石阶", "solid", 900, 646, 200, 295, "错层民居落脚；为S03连续坡面预留节奏"),
-  sourceCollider(1, "C13", "村道高台", "solid", 1100, SEAM.s02ToS03, 280, 309, "竹篱东段与雨蚀石涵引道"),
+  sourceCollider(1, "C11", "一级抬升石阶", "solid", 720, 660, 180, 281, "向山门缓坡过渡的第一级；高差约32源px，进入时必须跳跃", "surface", undefined, undefined, true),
+  sourceCollider(1, "C12", "二级抬升石阶", "solid", 900, 646, 200, 295, "错层民居落脚；高差约32源px，进入时必须跳跃", "surface", undefined, undefined, true),
+  sourceCollider(1, "C13", "村道高台", "solid", 1100, SEAM.s02ToS03, 280, 309, "竹篱东段与雨蚀石涵引道；进入高台时必须跳跃", "surface", undefined, undefined, true),
   sourceCollider(1, "C14", "跨屏接驳至S03", "solid", 1380, SEAM.s02ToS03, 292, 309, "雨蚀石涵道跨越J02世界接缝；S03山门缓坡从同高程起坡"),
   sourceCollider(1, "C15", "西民居屋檐", "oneway", 260, 540, 250, 18, "可跳屋顶；与地面路线重叠，不挡主路"),
   sourceCollider(1, "C16", "东民居错层檐", "oneway", 820, 505, 270, 18, "高于西屋；观察竹雾与S03远坡"),
   sourceCollider(1, "C17", "雨水木槽", "oneway", 530, 590, 170, 16, "landmark；短跳可达，提供第二落脚"),
   ...ADDITIONAL_GATE_CONSTRUCTION.flatMap((screen) => screen.colliders.map((collider) => sourceCollider(
-    screen.screen, collider.id, collider.name, collider.kind, collider.x, collider.y, collider.w, collider.h, collider.note, collider.route ?? "surface", collider.activation, collider.slopeEndY,
+    screen.screen, collider.id, collider.name, collider.kind, collider.x, collider.y, collider.w, collider.h, collider.note, collider.route ?? "surface", collider.activation, collider.slopeEndY, collider.requiresJump,
   ))),
 ];
 
@@ -247,7 +252,9 @@ const validateScreen = () => {
     if (!entry || !exit || entry.x !== x0 || exit.x + exit.w !== x1) {
       throw new Error(`${spec.id} 入口或出口未贴齐3840px屏界`);
     }
-    if (entry.y !== sy(spec.entryY) || exit.y !== sy(spec.exitY)) {
+    const entryTop = entry.y;
+    const exitTop = exit.slopeEndY ?? exit.y;
+    if (entryTop !== sy(spec.entryY) || exitTop !== sy(spec.exitY)) {
       throw new Error(`${spec.id} 入口或出口高程与施工规格不一致`);
     }
   }
@@ -257,6 +264,14 @@ const validateScreen = () => {
     if (collider.x < x0 || collider.y < 0 || collider.x + collider.w > x1 || collider.y + collider.h > STAGE.h) {
       throw new Error(`${collider.id} 超出 S${String(collider.screen + 1).padStart(2, "0")} 画布`);
     }
+    if (collider.requiresJump && (collider.kind !== "solid" || collider.slopeEndY !== undefined)) {
+      throw new Error(`${collider.id} 的跳跃台阶必须是水平实体踏面，不能是单向板或连续斜坡`);
+    }
+  }
+  const requiredJumpStairs = ["C03", "C11", "C12", "C13", "C37", "C44", "C51", "C52", "C53", "C53S"];
+  const missingJumpStairs = requiredJumpStairs.filter((id) => !COLLIDERS.find((collider) => collider.id === id)?.requiresJump);
+  if (missingJumpStairs.length > 0) {
+    throw new Error(`施工台阶缺少必须跳跃标记：${missingJumpStairs.join(", ")}`);
   }
 
   for (const building of BUILDING_PARTS) {
@@ -282,7 +297,12 @@ const validateScreen = () => {
     if (left.screen !== index || right.screen !== index + 1 || seamLink.x !== (index + 1) * STAGE.w) {
       throw new Error(`${seamLink.id} 屏幕归属或世界X错误`);
     }
-    if (left.x + left.w !== seamLink.x || right.x !== seamLink.x || left.y !== right.y || left.y + left.h !== right.y + right.h) {
+    if (left.x + left.w !== seamLink.x || right.x !== seamLink.x) {
+      throw new Error(`${seamLink.id} 顶面、底面或边界未焊接`);
+    }
+    const leftTop = left.slopeEndY ?? left.y;
+    const rightTop = right.y;
+    if (leftTop !== rightTop || left.y + left.h !== right.y + right.h) {
       throw new Error(`${seamLink.id} 顶面、底面或边界未焊接`);
     }
     if (seamLink.movement !== "walk" || !seamLink.bidirectional || seamLink.camera !== "continuous" || seamLink.route !== "main") {
@@ -383,16 +403,34 @@ const validateScreen = () => {
   if (highlandRise <= PLAYER.safeFall) {
     throw new Error("S08 高地与常规地面的垂直差异不足");
   }
-  const climbSteps = ["C50", "C51", "C52", "C53", "C54"].map((id) => COLLIDERS.find((collider) => collider.id === id)!);
-  if (climbSteps.some((step, index) => index > 0 && climbSteps[index - 1].y - step.y > PLAYER.jumpHeight)) {
+  const climbSteps = ["C50", "C121", "C120", "C51", "C52", "C53", "C53S", "C54"].map((id) => COLLIDERS.find((collider) => collider.id === id)!);
+  const s07StepSurfaces = ["C51", "C52", "C53", "C53S"].map((id) => COLLIDERS.find((collider) => collider.id === id)!);
+  const s07StepApproaches = ["C120", "C51", "C52", "C53"].map((id) => COLLIDERS.find((collider) => collider.id === id)!);
+  const s07StepRises = s07StepSurfaces.map((step, index) => s07StepApproaches[index].y - step.y);
+  if (s07StepSurfaces.some((step) => step.slopeEndY !== undefined) || s07StepRises.length !== 4 || s07StepRises.some((rise) => rise <= sy(36) || rise > PLAYER.jumpHeight)) {
+    throw new Error("S07 必须是四级需要跳跃的水平踏面；不得使用连续斜坡或可自动跨上的低台阶");
+  }
+  if (climbSteps.some((step, index) => {
+    if (index === 0) return false;
+    const previous = climbSteps[index - 1];
+    const previousEnd = previous.slopeEndY ?? previous.y;
+    const horizontalGap = step.x - (previous.x + previous.w);
+    const rise = previousEnd - step.y;
+    return Math.abs(horizontalGap) > 1 || rise < 0 || rise > PLAYER.jumpHeight;
+  })) {
     throw new Error("S07 登高石阶存在不可达高差");
   }
   const s07BlockingBoundaries = COLLIDERS.filter((collider) => collider.screen === 6 && collider.route === "surface" && collider.kind === "boundary" && collider.x < climbSteps.at(-1)!.x + climbSteps.at(-1)!.w && collider.x + collider.w > climbSteps[0].x);
   if (s07BlockingBoundaries.length > 0) {
     throw new Error(`S07 登高主路线被边界碰撞阻断：${s07BlockingBoundaries.map((collider) => collider.id).join(", ")}`);
   }
-  const descentSteps = ["C67", "C68", "C69", "C70", "C71"].map((id) => COLLIDERS.find((collider) => collider.id === id)!);
-  if (descentSteps.some((step, index) => index > 0 && step.y - descentSteps[index - 1].y > PLAYER.safeFall)) {
+  const descentSteps = ["C67", "C68", "C68S", "C69", "C69S", "C70", "C70S", "C71"].map((id) => COLLIDERS.find((collider) => collider.id === id)!);
+  if (descentSteps.some((step, index) => {
+    if (index === 0) return false;
+    const previous = descentSteps[index - 1];
+    const previousEnd = previous.slopeEndY ?? previous.y;
+    return Math.abs(previousEnd - step.y) > 1 || (step.slopeEndY ?? step.y) - previousEnd > PLAYER.safeFall;
+  })) {
     throw new Error("S09 下山箭廊存在不安全落差");
   }
   if (descentSteps[0].slopeEndY !== descentSteps[1].y) {
@@ -403,6 +441,8 @@ const validateScreen = () => {
 };
 
 const SCREEN_VALIDATION = validateScreen();
+/** The construction view is also the runtime collision trace: this list is derived from the same flags consumed by gateSolidWallClamp(). */
+const RUNTIME_JUMP_COLLIDERS = COLLIDERS.filter((item) => item.requiresJump);
 
 export default function GateScreenS01() {
   const [zoom, setZoom] = useState(ZOOM.fit);
@@ -631,11 +671,13 @@ export default function GateScreenS01() {
       data-seam-links={SCREEN_VALIDATION.seams}
       data-lower-seam-links={SCREEN_VALIDATION.lowerSeams}
       data-hidden-entrances={SCREEN_VALIDATION.hiddenEntrances}
+      data-runtime-physics="live"
+      data-runtime-jump-colliders={RUNTIME_JUMP_COLLIDERS.length}
       data-construction-plane={constructionPlane}
     >
       <header className="screen-header">
         <div><span>REGION 01 · CONTINUOUS CONSTRUCTION MAP</span><h1>雨蚀山门 <b>S01–S12 全区施工图</b></h1></div>
-        <nav><span>地表 {REGION.w}×{STAGE.h}px · 隐藏层 S04–S07 独立绘制 · 已施工 {SCREEN_VALIDATION.built.length}/12屏</span><Link href="/map/gate">返回场景总图 ↗</Link></nav>
+        <nav><span>地表 {REGION.w}×{STAGE.h}px · RUNTIME PHYSICS LOG · LIVE · 已施工 {SCREEN_VALIDATION.built.length}/12屏</span><Link href="/map/gate">返回场景总图 ↗</Link></nav>
       </header>
 
       <div className="screen-workspace">
@@ -648,6 +690,7 @@ export default function GateScreenS01() {
             <div><dt>跳跃高度</dt><dd>{PLAYER.jumpHeight}px</dd></div>
             <div><dt>助跑跨度</dt><dd>{PLAYER.runJump}px</dd></div>
             <div><dt>安全落差</dt><dd>≤ {PLAYER.safeFall}px</dd></div>
+            <div><dt>墙面扫掠胶囊</dt><dd>{GATE_WALL_COLLISION.playerHalfWidth * 2}px · LIVE</dd></div>
             <div><dt>连续接缝</dt><dd>{SEAM_LINKS.length} / 11</dd></div>
             <div><dt>地下接缝</dt><dd>{LOWER_SEAM_LINKS.length} / 3</dd></div>
             <div><dt>隐藏入口</dt><dd>{SCREEN_VALIDATION.hiddenEntrances} / 1</dd></div>
@@ -657,6 +700,24 @@ export default function GateScreenS01() {
             <div><dt>S08高差</dt><dd>{SCREEN_VALIDATION.highlandRise}px</dd></div>
             <div><dt>接缝方式</dt><dd>步行 ↔ / 无锁镜头</dd></div>
           </dl>
+
+          <div className="screen-panel-heading compact"><span>运行时日志</span><b>LIVE · {RUNTIME_JUMP_COLLIDERS.length}</b></div>
+          <div className="runtime-log-list">
+            {RUNTIME_JUMP_COLLIDERS.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className={selectedCollider === item.id ? "active" : ""}
+                onClick={() => {
+                  setConstructionPlane(item.route);
+                  setSelectedCollider(item.id);
+                  focusBuiltScreen(item.screen);
+                }}
+              >
+                <b>{item.id}</b><span>JUMP_REQUIRED · S{String(item.screen + 1).padStart(2, "0")} · Y{item.y}</span>
+              </button>
+            ))}
+          </div>
 
           <div className="screen-panel-heading compact"><span>聚焦屏</span><b>S01–S12</b></div>
           <div className="screen-focus-controls">
@@ -685,7 +746,7 @@ export default function GateScreenS01() {
               <button
                 key={item.id}
                 type="button"
-                className={`${item.kind} ${item.activation ? "conditional" : ""} ${selectedCollider === item.id ? "active" : ""}`}
+                className={`${item.kind} ${item.requiresJump ? "jump-required" : ""} ${item.activation ? "conditional" : ""} ${selectedCollider === item.id ? "active" : ""}`}
                 onClick={() => {
                   setSelectedCollider(item.id);
                   setFocusScreen(item.screen);
@@ -698,7 +759,7 @@ export default function GateScreenS01() {
           </div>
 
           <div className="screen-legend">
-            <span><i className="solid"/>实体碰撞</span><span><i className="oneway"/>单向平台</span><span><i className="boundary"/>边界碰撞</span>
+            <span><i className="solid"/>实体碰撞</span><span><i className="oneway"/>单向平台</span><span><i className="boundary"/>边界碰撞</span><span><i className="jump-required"/>橙色：必须跳跃的台阶</span>
           </div>
         </aside>
 
@@ -799,7 +860,7 @@ export default function GateScreenS01() {
                     <path className="far-mountains" d="M0 580L180 390L330 470L520 280L720 440L930 230L1160 390L1370 250L1672 420V760H0Z"/>
                     {(artPreview || layers.has("scene")) && <image
                       className="scene-art-layer"
-                      href="/assets/maps/gate/s01-ink-background-layered-4k.png?v=cool-grade-1"
+                      href="/assets/maps/gate/s01-ink-background-layered-4k.png?v=land-god-shrine-1"
                       x="0"
                       y="0"
                       width={SOURCE_STAGE.w}
@@ -824,7 +885,7 @@ export default function GateScreenS01() {
                     <path className="far-mountains" d="M0 420L140 360L280 430L460 260L640 400L820 220L1040 360L1260 240L1480 350L1672 420V760H0Z"/>
                     {(artPreview || layers.has("scene")) && <image
                       className="scene-art-layer"
-                      href="/assets/maps/gate/s02-ink-background-layered-4k.png?v=s02-s03-bamboo-1"
+                      href="/assets/maps/gate/s02-ink-background-layered-seam-v2-4k.png"
                       x="0"
                       y="0"
                       width={SOURCE_STAGE.w}
@@ -883,24 +944,32 @@ export default function GateScreenS01() {
                       className="scene-art-layer region-sketch-layer"
                       href={constructionPlane === "underground"
                         ? screen.id === "s04"
-                          ? "/assets/maps/gate/s04-underground-ink-layered-4k.png?v=s04-underground-five-layer-2"
+                          ? "/assets/maps/gate/s04-underground-ink-layered-4k.png?v=land-god-shrine-1"
                           : screen.id === "s05"
                             ? "/assets/maps/gate/s05-underground-ink-layered-4k.png?v=s05-underground-five-layer-2"
+                          : screen.id === "s06"
+                            ? "/assets/maps/gate/s06-underground-ink-layered-4k.png?v=s06-underground-five-layer-1"
                           : `/assets/maps/gate/region-sketch/underground/screens/${screen.id}.png?v=hidden-region-s07-return-1`
                         : screen.id === "s03"
-                          ? "/assets/maps/gate/s03-ink-background-layered-4k.png?v=seam-ground-2"
+                          ? "/assets/maps/gate/s03-ink-background-layered-seam-v2-4k.png"
                           : screen.id === "s04"
                             ? "/assets/maps/gate/s04-ink-background-layered-4k.png?v=seam-ground-4"
                             : screen.id === "s05"
-                              ? "/assets/maps/gate/s05-ink-background-layered-4k.png?v=s05-surface-five-layer-5"
+                              ? "/assets/maps/gate/s05-ink-background-layered-4k.png?v=natural-floor-collision-6"
                               : screen.id === "s06"
                                 ? "/assets/maps/gate/s06-ink-background-layered-4k.png?v=s06-surface-five-layer-1"
                                 : screen.id === "s07"
-                                  ? "/assets/maps/gate/s07-ink-background-grounded-4k.png?v=summit-flags-5"
+                                  ? "/assets/maps/gate/s07-ink-background-grounded-4k.png?v=land-god-shrine-1"
                                   : screen.id === "s08"
-                                    ? "/assets/maps/gate/s08-ink-background-layered-4k.png?v=s08-level-seam-2"
+                                    ? "/assets/maps/gate/s08-ink-background-layered-4k.png?v=s08-flat-y300"
                                     : screen.id === "s09"
-                                      ? "/assets/maps/gate/s09-ink-background-layered-4k.png?v=s09-art-v1"
+                                      ? "/assets/maps/gate/s09-ink-background-layered-4k.png?v=s09-entry-y300"
+                                      : screen.id === "s10"
+                                        ? "/assets/maps/gate/s10-ink-background-layered-v2-4k.png"
+                                        : screen.id === "s11"
+                                          ? "/assets/maps/gate/s11-ink-background-layered-4k.png?v=s11-five-layer-1"
+                                          : screen.id === "s12"
+                                            ? "/assets/maps/gate/s12-ink-background-layered-4k.png?v=s12-five-layer-1"
                             : `/assets/maps/gate/region-sketch/screens/${screen.id}.png?v=hidden-region-1`}
                       x="0"
                       y="0"
@@ -914,13 +983,19 @@ export default function GateScreenS01() {
                         const width = part.x1 - part.x0;
                         const height = part.y1 - part.y0;
                         const center = part.x0 + width / 2;
+                        const stairPath = part.steps?.length
+                          ? `M${part.steps[0].x} ${part.steps[0].y}${part.steps.slice(1).map((step) => `H${step.x}V${step.y}`).join("")}H${part.x1}V${part.y1}H${part.x0}Z`
+                          : `M${part.x0} ${part.y1}H${part.x1}V${part.y0}H${part.x0}Z`;
                         return <g key={part.id} className={`construction-part part-${part.shape}`}>
-                          {part.shape === "slope"
+                          {part.shape === "stairs"
+                            ? <path className="part-body" d={stairPath}/>
+                            : part.shape === "slope"
                             ? <path className="part-body" d={`M${part.x0} ${part.y1}L${part.x1} ${part.y0}V${part.y1}Z`}/>
                             : <rect className="part-body" x={part.x0} y={part.y0} width={width} height={height}/>} 
                           {(part.shape === "gate" || part.shape === "pavilion" || part.shape === "shed" || part.shape === "tower") && <path className="part-roof" d={`M${part.x0 - 24} ${part.y0}Q${center} ${part.y0 - Math.min(90, height * .38)} ${part.x1 + 24} ${part.y0}`}/>} 
                           {(part.shape === "corridor" || part.shape === "bridge") && <>{Array.from({ length: 5 }).map((_, column) => <line key={column} x1={part.x0 + width * (column + 1) / 6} y1={part.y0} x2={part.x0 + width * (column + 1) / 6} y2={part.y1}/>)}</>}
                           {part.shape === "water" && <path className="water-lines" d={`M${part.x0} ${part.y0 + 18}Q${part.x0 + width * .25} ${part.y0} ${part.x0 + width * .5} ${part.y0 + 18}T${part.x1} ${part.y0 + 18}`}/>} 
+                          {part.shape === "prop" && <><ellipse className="prop-vessel" cx={part.x0 + width * .34} cy={part.y1 - height * .36} rx={width * .18} ry={height * .36}/><path className="prop-rubble" d={`M${part.x0 + width * .58} ${part.y1}l${width * .12} ${-height * .5}l${width * .11} ${height * .5}m${-width * .05} 0l${width * .12} ${-height * .3}`}/><line className="prop-baseline" x1={part.x0} y1={part.y1} x2={part.x1} y2={part.y1}/></>}
                           {part.shape === "arena" && <><line x1={part.x0 + width * .2} y1={part.y0} x2={part.x0 + width * .2} y2={part.y1}/><line x1={part.x1 - width * .2} y1={part.y0} x2={part.x1 - width * .2} y2={part.y1}/></>}
                           <text x={center} y={part.y0 - 16}>{part.id} · {part.name}</text>
                         </g>;
@@ -945,14 +1020,19 @@ export default function GateScreenS01() {
                     {(constructionPlane === "surface" ? SEAM_LINKS : LOWER_SEAM_LINKS).map((link) => <g key={link.id}><rect className="camera-seam-zone" x={link.x - sx(180)} y={sy(190)} width={sx(360)} height={sy(540)}/><text x={link.x} y={sy(176)}>{link.id} · CAMERA CONTINUOUS</text></g>)}
                   </g>}
 
-                  {layers.has("collision") && <g className="collision-layer">{COLLIDERS.filter((item) => item.route === constructionPlane).map((item) => (
-                    <g key={item.id} className={`collider collider-${item.kind} ${item.activation ? "conditional" : ""} ${selectedCollider === item.id ? "selected" : ""}`} onClick={() => { setSelectedCollider(item.id); setFocusScreen(item.screen); }}>
+                  {layers.has("collision") && <g className="collision-layer">{COLLIDERS.filter((item) => item.route === constructionPlane).map((item) => {
+                   const lowerCollider = item.requiresJump
+                      ? COLLIDERS.filter((candidate) => candidate.id !== item.id && candidate.route === item.route && candidate.screen === item.screen && candidate.x + candidate.w <= item.x && (candidate.slopeEndY ?? candidate.y) > item.y).sort((left, right) => right.x + right.w - (left.x + left.w))[0]
+                     : undefined;
+                    const lowerTop = lowerCollider ? lowerCollider.slopeEndY ?? lowerCollider.y : undefined;
+                    return <g key={item.id} className={`collider collider-${item.kind} ${item.requiresJump ? "jump-required" : ""} ${item.activation ? "conditional" : ""} ${selectedCollider === item.id ? "selected" : ""}`} onClick={() => { setSelectedCollider(item.id); setFocusScreen(item.screen); }}>
                       {item.slopeEndY === undefined
                         ? <rect x={item.x} y={item.y} width={item.w} height={item.h}/>
                         : <path className="collider-shape" d={`M${item.x} ${item.y}L${item.x + item.w} ${item.slopeEndY}V${item.y + item.h}H${item.x}Z`}/>}
+                      {lowerCollider && lowerTop !== undefined && <g className="jump-required-marker"><path d={`M${item.x} ${lowerTop}V${item.y}m${-sx(16)} ${sy(20)}L${item.x} ${item.y - sy(2)}l${sx(16)} ${-sy(20)}M${item.x} ${item.y}H${item.x + item.w}`}/><text x={item.x + item.w / 2} y={item.y - sy(30)}>JUMP ↑</text></g>}
                       <text x={item.x + 10} y={item.y + 22}>{item.id} · {item.w}×{item.h}</text>
-                    </g>
-                  ))}</g>}
+                    </g>;
+                  })}</g>}
 
                   {layers.has("collision") && <g className="seam-weld-layer">{ALL_SEAM_LINKS.filter((link) => link.route === (constructionPlane === "surface" ? "main" : "underground")).map((link) => {
                     const left = COLLIDERS.find((item) => item.id === link.fromCollider)!;
@@ -986,6 +1066,7 @@ export default function GateScreenS01() {
                       {constructionPlane === "surface" && screen.upperPaths?.map((path, index) => <path key={index} className="upper-path" d={path}/>)}
                       {constructionPlane === "underground" && screen.lowerPath && <path className="lower-path" d={screen.lowerPath}/>}
                       {screen.encounters.filter((encounter) => (encounter.route ?? "surface") === constructionPlane).map((encounter, index) => <g key={`${encounter.label}-${index}`} className={`encounter-marker encounter-${encounter.tone}`} transform={`translate(${encounter.x} ${encounter.y})`}><circle r="16"/><path d="M-22 0H22M0-22V22"/><text x="0" y="-30">{encounter.label}</text></g>)}
+                      {GATE_SHRINE_PLACEMENTS.filter((shrine) => shrine.screen === screen.screen && shrine.route === constructionPlane).map((shrine) => <g key={shrine.id} className="shrine-zone"><rect x={shrine.x} y={shrine.y} width={shrine.w} height={shrine.h}/><text x={shrine.x} y={shrine.y - 16}>{shrine.id} · {shrine.label}</text></g>)}
                       <g className="screen-role"><text x="836" y="110">{screen.role} · {screen.gameplayNote}</text></g>
                     </g>)}
                   </>}
@@ -1020,7 +1101,7 @@ export default function GateScreenS01() {
 
           <div className="screen-status">
             <span>当前施工 S{String(collider.screen + 1).padStart(2, "0")} · 已建 12/12 · X {collider.screen * STAGE.w}–{(collider.screen + 1) * STAGE.w}</span>
-            <b>绿色：实际碰撞 · 青色：单向平台 · 紫线：地下支路 · H01：隐藏层切换 · 接缝 {SCREEN_VALIDATION.seams}/11 + 地下 {SCREEN_VALIDATION.lowerSeams}/3</b>
+            <b>绿色：实际碰撞 · 橙色：JUMP_REQUIRED / WALL_CLAMP · 青色：单向平台 · 接缝 {SCREEN_VALIDATION.seams}/11 + 地下 {SCREEN_VALIDATION.lowerSeams}/3</b>
             <span>一区总宽 {REGION.w}px</span>
           </div>
         </section>
@@ -1034,10 +1115,20 @@ export default function GateScreenS01() {
             <div><dt>左上坐标</dt><dd>X {collider.x} / Y {collider.y}</dd></div>
             <div><dt>尺寸</dt><dd>{collider.w} × {collider.h}px</dd></div>
             <div><dt>落脚面</dt><dd>{collider.slopeEndY === undefined ? `Y ${collider.y}px` : `Y ${collider.y} → ${collider.slopeEndY}px`}</dd></div>
+            <div><dt>进入方式</dt><dd>{collider.requiresJump ? "必须跳跃" : "可正常移动"}</dd></div>
             <div><dt>所属屏</dt><dd>S{String(collider.screen + 1).padStart(2, "0")} · {REGION_SCREENS[collider.screen]}</dd></div>
             <div><dt>类型</dt><dd>{collider.activation ? "Boss战动态封门" : { solid: "实体地形", oneway: "单向穿越平台", boundary: "不可穿越边界" }[collider.kind]}</dd></div>
             {collider.activation && <><div><dt>战前</dt><dd>碰撞解除</dd></div><div><dt>开战</dt><dd>碰撞启用</dd></div><div><dt>击杀后</dt><dd>碰撞解除</dd></div></>}
           </dl>
+          <section className={`runtime-log ${collider.requiresJump ? "jump" : ""}`}>
+            <small>RUNTIME LOG · COLLISION TRACE</small>
+            <b>{collider.requiresJump ? "JUMP_REQUIRED / WALL_CLAMP" : collider.slopeEndY !== undefined ? "SURFACE_FOLLOW / SLOPE" : "SURFACE_CONTACT / WALK"}</b>
+            <span>[COLLIDER] {collider.id} · {collider.route.toUpperCase()} · X {collider.x}–{collider.x + collider.w}</span>
+            <span>[SWEEP] foot capsule ±{GATE_WALL_COLLISION.playerHalfWidth}px · ground + air</span>
+            {collider.requiresJump
+              ? <><span>[BLOCK] lower-side entry stops at riser</span><span>[INPUT] jump → [LAND] tread top Y {collider.y}</span></>
+              : <><span>[CONTACT] walkable top registered at Y {collider.y}</span><span>[MOVE] continuous surface / auto-step rules</span></>}
+          </section>
           <section>
             <small>BUILDING PARTS · S{String(collider.screen + 1).padStart(2, "0")}</small>
             {buildingsForDetail.map((part) => (

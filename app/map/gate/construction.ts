@@ -10,6 +10,8 @@ export type ConstructionColliderSpec = {
   h: number;
   /** Optional top-right walkable Y for a continuous solid slope. */
   slopeEndY?: number;
+  /** Entering this solid from the lower side requires an explicit jump. */
+  requiresJump?: boolean;
   note: string;
   route?: "surface" | "underground";
   activation?: {
@@ -28,7 +30,9 @@ export type ConstructionBuildingSpec = {
   x1: number;
   y1: number;
   material: string;
-  shape: "slope" | "shed" | "gate" | "corridor" | "pavilion" | "arena" | "tower" | "water" | "bridge";
+  shape: "slope" | "stairs" | "shed" | "gate" | "corridor" | "pavilion" | "arena" | "tower" | "water" | "bridge" | "prop";
+  /** Local-space horizontal stair landings, from the lowest to the highest. */
+  steps?: readonly { x: number; y: number }[];
   route?: "surface" | "underground";
 };
 
@@ -38,6 +42,18 @@ export type ConstructionEncounterSpec = {
   label: string;
   tone: "basic" | "range" | "elite" | "wave" | "safe" | "system";
   route?: "surface" | "underground";
+};
+
+export type GateShrinePlacementSpec = {
+  id: `SH${string}`;
+  screen: number;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  route: "surface" | "underground";
+  role: "save" | "offering" | "respawn";
+  label: string;
 };
 
 export type ConstructionLayerTransitionSpec = {
@@ -90,8 +106,8 @@ export type GateConstructionSpec = {
   encounters: readonly ConstructionEncounterSpec[];
 };
 
-const floor = (id: string, name: string, x: number, y: number, w: number, note: string): ConstructionColliderSpec => ({
-  id, name, kind: "solid", x, y, w, h: 941 - y, note,
+const floor = (id: string, name: string, x: number, y: number, w: number, note: string, requiresJump = false): ConstructionColliderSpec => ({
+  id, name, kind: "solid", x, y, w, h: 941 - y, note, requiresJump,
 });
 
 const slab = (id: string, name: string, x: number, y: number, w: number, note: string, h = 48): ConstructionColliderSpec => ({
@@ -134,17 +150,24 @@ export const GATE_RETURN_TRANSITIONS: readonly ConstructionReturnTransitionSpec[
   note: "S07西侧永久梯井；从地下单向上爬，穿过单向井盖切回地表摄影机，出口正对复活锚点。",
 }] as const;
 
+/** Every Gate-region shrine uses shared/save-shrine-v1.png in Layer 3. */
+export const GATE_SHRINE_PLACEMENTS: readonly GateShrinePlacementSpec[] = [
+  { id: "SH01", screen: 0, x: 315, y: 672, w: 50, h: 48, route: "surface", role: "save", label: "破庙土地神龛" },
+  { id: "SH02", screen: 3, x: 1315, y: 602, w: 50, h: 48, route: "underground", role: "offering", label: "地下土地神龛" },
+  { id: "SH03", screen: 6, x: 395, y: 542, w: 50, h: 48, route: "surface", role: "respawn", label: "演武坪土地神龛" },
+] as const;
+
 export const ADDITIONAL_GATE_CONSTRUCTION: readonly GateConstructionSpec[] = [
   {
     id: "s03", screen: 2, name: "山门缓坡", role: "移动 / 建筑", entryY: 632, exitY: 570, entryCollider: "C19", exitCollider: "C23",
-    mainPath: "M0 632H180L540 620L900 600L1260 580L1672 570", upperPaths: ["M620 500H860", "M1120 450H1340"],
+    mainPath: "M0 632H180L540 620L900 600L1260 580L1672 570", upperPaths: ["M593 484H851", "M1044 422H1224"],
     gameplayNote: "三段缓坡控制在可持续奔跑角度；排水沟只影响脚步反馈，不形成卡脚凹槽。",
     colliders: [
       floor("C19", "石涵接坡入口", 0, 632, 180, "承接跨屏雨蚀石涵道，同高进入缓坡"), floor("C20", "一级排水缓坡", 180, 620, 360, "首段轻抬升，建立坡面移动"),
       floor("C21", "二级排水缓坡", 540, 600, 360, "中段连续跑跳，无隐形台阶"), floor("C22", "三级山门缓坡", 900, 580, 360, "末段抬升并展开远景"),
       floor("C23", "竹篱口接驳地基", 1260, 570, 412, "实体地基铺至画布底部，贴齐S04入口并保留战斗前观察距离"),
-      { id: "C24", name: "排水沟检修板", kind: "oneway", x: 620, y: 500, w: 240, h: 18, note: "短跳可达的安全落脚，不截断主坡" },
-      { id: "C25", name: "坡顶观察石台", kind: "oneway", x: 1120, y: 450, w: 220, h: 18, note: "观察S04敌人部署的上层预览位" },
+      { id: "C24", name: "中段矮墙顶面", kind: "oneway", x: 593, y: 484, w: 258, h: 18, note: "碰撞严格贴合美术左侧矮墙顶盖；短跳可达，不额外绘制浮空踏板" },
+      { id: "C25", name: "坡顶矮墙顶面", kind: "oneway", x: 1044, y: 422, w: 180, h: 18, note: "碰撞严格贴合美术右侧矮墙顶盖；作为观察位，不延伸到竹篱门内" },
     ],
     buildings: [
       { id: "A12", name: "三段排水石阶", x0: 180, y0: 420, x1: 1260, y1: 620, material: "雨蚀青石 / 明沟", shape: "slope" },
@@ -175,14 +198,13 @@ export const ADDITIONAL_GATE_CONSTRUCTION: readonly GateConstructionSpec[] = [
   },
   {
     id: "s05", screen: 4, name: "石狮甬道", role: "常规战斗", entryY: 610, exitY: 600, entryCollider: "C34", exitCollider: "C38",
-    mainPath: "M0 610H1672", upperPaths: ["M520 475H790", "M1050 445H1360"], lowerPath: "M0 780H1672",
+    mainPath: "M0 610H1672", upperPaths: ["M1055 418H1390"], lowerPath: "M0 780H1672",
     gameplayNote: "地表三重门框保留完整弩线预警；隐藏层独立绘制为一整屏宽的排水地域，包含上下落脚、暗龛和完整跳跃净空。",
     colliders: [
       slab("C34", "甬道西口", 0, 610, 260, "承接竹篱小径；下方为连续排水道"), slab("C35", "第一门洞结构板", 260, 610, 400, "石狮后安全区与涵洞顶板"),
-      slab("C36", "第二门洞结构板", 660, 610, 420, "近战与弩线交汇区，下方保持净空"), slab("C37", "第三门洞结构板", 1080, 600, 340, "离开交火区前的小抬升"),
+      slab("C36", "第二门洞结构板", 660, 610, 420, "近战与弩线交汇区，下方保持净空"), { ...slab("C37", "第三门洞结构板", 1080, 600, 340, "离开交火区前的小抬升；进入时必须跳跃"), requiresJump: true },
       slab("C38", "雨廊接驳结构板", 1420, 600, 252, "贴齐S06入口并保持地下通道净空"),
-      { id: "C39", name: "西门楼射台", kind: "oneway", x: 520, y: 475, w: 270, h: 18, note: "可反击弩手的中层台" },
-      { id: "C40", name: "东门楼弩台", kind: "oneway", x: 1050, y: 445, w: 310, h: 18, note: "屋脊弩手部署位" },
+      { id: "C40", name: "东门楼二层横梁", kind: "oneway", x: 1055, y: 418, w: 335, h: 18, note: "碰撞贴合A19门楼既有二层楼板；不再额外绘制石台或支柱，作为屋脊弩手部署位" },
       { ...floor("C103", "排水道西接驳", 0, 780, 400, "承接S04隐藏地域，保持同高"), route: "underground" },
       { ...floor("C104", "石狮地下排水地域", 400, 780, 800, "完整一屏宽探索区；允许奔跑、起跳与小型战斗"), route: "underground" },
       { ...floor("C105", "排水道东接驳", 1200, 780, 472, "贴齐S06涵洞西口"), route: "underground" },
@@ -195,7 +217,7 @@ export const ADDITIONAL_GATE_CONSTRUCTION: readonly GateConstructionSpec[] = [
       { id: "A18", name: "中段题刻门", x0: 620, y0: 300, x1: 1010, y1: 610, material: "山门题刻 / 断匾", shape: "gate" },
       { id: "A19", name: "东侧弩手门楼", x0: 1050, y0: 280, x1: 1400, y1: 600, material: "灰瓦 / 射孔", shape: "tower" },
       { id: "A42", name: "石狮地下排水地域", x0: 0, y0: 420, x1: 1672, y1: 780, material: "拱券青砖 / 排水沟 / 检修孔 / 暗龛", shape: "corridor", route: "underground" },
-    ], encounters: [{ x: 760, y: 610, label: "竹影刀客 ×1", tone: "basic" }, { x: 1200, y: 445, label: "屋脊弩手 ×1", tone: "range" }, { x: 820, y: 780, label: "隐藏层守卫 ×1", tone: "elite", route: "underground" }],
+    ], encounters: [{ x: 760, y: 610, label: "竹影刀客 ×1", tone: "basic" }, { x: 1200, y: 418, label: "屋脊弩手 ×1", tone: "range" }, { x: 820, y: 780, label: "隐藏层守卫 ×1", tone: "elite", route: "underground" }],
   },
   {
     id: "s06", screen: 5, name: "雨廊石阶", role: "移动 / 建筑", entryY: 600, exitY: 590, entryCollider: "C42", exitCollider: "C46",
@@ -203,7 +225,7 @@ export const ADDITIONAL_GATE_CONSTRUCTION: readonly GateConstructionSpec[] = [
     gameplayNote: "长雨廊承担室外到建筑群的过渡；隐藏层保持完整跳跃净空并向东穿过U03，进入S07西侧永久梯井。",
     colliders: [
       slab("C42", "雨廊西阶结构板", 0, 600, 300, "承接石狮甬道；下方接续涵洞"), slab("C43", "长雨廊主结构板", 300, 600, 520, "廊柱不进入实际碰撞，地下保持净空"),
-      slab("C44", "檐水石槽结构板", 820, 590, 400, "瀑布式檐水通过处"), slab("C45", "雨廊东端检修地板", 1220, 590, 220, "地表保持连续；永久回程出口已迁至S07西侧安全坪"),
+      { ...slab("C44", "檐水石槽结构板", 820, 590, 400, "雨廊石阶上行踏面；进入时必须跳跃"), requiresJump: true }, slab("C45", "雨廊东端检修地板", 1220, 590, 220, "地表保持连续；永久回程出口已迁至S07西侧安全坪"),
       slab("C46", "演武坪接驳结构板", 1440, 590, 232, "贴齐S07入口"),
       { id: "C47", name: "雨廊屋檐射台", kind: "oneway", x: 300, y: 420, w: 1020, h: 18, note: "弩手巡逻与观察平台" },
       { id: "C48", name: "排水涵洞地板", kind: "solid", x: 340, y: 780, w: 840, h: 161, note: "隐藏地域向东延伸，保持完整奔跑空间", route: "underground" },
@@ -223,12 +245,15 @@ export const ADDITIONAL_GATE_CONSTRUCTION: readonly GateConstructionSpec[] = [
   },
   {
     id: "s07", screen: 6, name: "演武坪", role: "安全 / 叙事", entryY: 590, exitY: 300, entryCollider: "C50", exitCollider: "C54",
-    mainPath: "M0 590H100H240H520L760 520L1030 440L1320 350L1540 300H1672", lowerPath: "M0 780H170V590",
-    gameplayNote: "地下支路从西侧U03进入永久梯井，在X100–240的单向井盖下攀回地表；出口面向X420复活锚点。后半屏以四段折返山阶持续登高。",
+    mainPath: "M0 590H100H240H520V520H760V440H1030V350H1320V300H1540H1672", lowerPath: "M0 780H170V590",
+    gameplayNote: "地下支路从西侧U03进入永久梯井，在X100–240的单向井盖下攀回地表；出口面向X420复活锚点。后半屏改为四级水平踏面，必须逐级跳跃登高；每级踏面下方以实体挡土墙封闭，禁止斜坡吸附或从阶腹坠落。",
     colliders: [
-      slab("C50", "演武坪西口", 0, 590, 100, "承接S06雨廊结构板；进入安全坪后立即看见回程梯井与复活锚点"), floor("C51", "折返石阶一段", 520, 520, 240, "第一段抬升"),
-      floor("C52", "折返石阶二段", 760, 440, 270, "第二段抬升"), floor("C53", "折返石阶三段", 1030, 350, 290, "第三段抬升"),
-      floor("C54", "校场齐平接驳", 1320, 300, 352, "降低末级高差，与S08校场主地面保持齐平"),
+      slab("C50", "演武坪西口", 0, 590, 100, "承接S06雨廊结构板；进入安全坪后立即看见回程梯井与复活锚点"),
+      floor("C51", "折返石阶一级踏面", 520, 520, 240, "第一道水平踏面；高差70px，必须跳跃；实体挡土墙封住阶腹", true),
+      floor("C52", "折返石阶二级踏面", 760, 440, 270, "第二道水平踏面；高差80px，必须跳跃；实体挡土墙封住阶腹", true),
+      floor("C53", "折返石阶三级踏面", 1030, 350, 290, "第三道水平踏面；高差90px，必须跳跃；实体挡土墙封住阶腹", true),
+      floor("C53S", "折返石阶四级踏面", 1320, 300, 220, "第四道水平踏面；高差50px，必须跳跃；实体挡土墙封住阶腹", true),
+      floor("C54", "校场齐平接驳", 1540, 300, 132, "与S08校场主地面保持齐平并焊接J07"),
       { ...slab("C116", "演武坪地下西接驳", 0, 780, 320, "承接S06涵洞东口并通向永久梯井", 161), route: "underground" },
       { id: "C117", name: "永久梯井中段踏板", kind: "oneway", x: 100, y: 680, w: 140, h: 18, note: "梯井中段安全复位踏板", route: "underground" },
       { id: "C118", name: "演武坪地下西洞顶", kind: "solid", x: 0, y: 420, w: 100, h: 48, note: "梯井左侧封闭洞顶", route: "underground" },
@@ -239,38 +264,43 @@ export const ADDITIONAL_GATE_CONSTRUCTION: readonly GateConstructionSpec[] = [
     ],
     buildings: [
       { id: "A23", name: "演武坪武器架", x0: 260, y0: 430, x1: 520, y1: 590, material: "武器架 / 练功木人", shape: "shed" },
-      { id: "A24", name: "高地折返石阶", x0: 520, y0: 120, x1: 1420, y1: 590, material: "连续青石阶 / 雨蚀护栏 / 实体挡土墙；禁止空洞、断柱和悬空栈台", shape: "slope" },
+      { id: "A24", name: "高地四级折返石阶", x0: 520, y0: 120, x1: 1540, y1: 590, material: "四级水平青石踏面 / 雨蚀护栏 / 实体挡土墙；禁止斜坡、空洞、断柱和悬空栈台", shape: "stairs", steps: [{ x: 520, y: 590 }, { x: 760, y: 520 }, { x: 1030, y: 440 }, { x: 1320, y: 350 }, { x: 1540, y: 300 }] },
       { id: "A45", name: "演武坪地下回程廊", x0: 0, y0: 420, x1: 320, y1: 780, material: "排水青砖 / 湿苔 / 梯井基座", shape: "corridor", route: "underground" },
       { id: "A46", name: "S07永久回程梯井", x0: 100, y0: 420, x1: 240, y1: 780, material: "石砌井壁 / 木梯 / 单向井盖", shape: "bridge", route: "underground" },
       { id: "A47", name: "复活坪梯井出口", x0: 80, y0: 518, x1: 260, y1: 590, material: "雨蚀青石井沿 / 暗井 / 湿木梯", shape: "gate" },
     ], encounters: [{ x: 420, y: 590, label: "复活锚点", tone: "safe" }, { x: 900, y: 440, label: "竹影刀客 ×1（巡逻）", tone: "basic" }],
   },
   {
-    id: "s08", screen: 7, name: "守门校场", role: "精英 / 能力", entryY: 300, exitY: 260, entryCollider: "C58", exitCollider: "C63",
-    mainPath: "M0 300H1220L1440 280L1672 260", upperPaths: ["M280 170H1390"],
-    gameplayNote: "校场整体位于高地平台；全屏封锁只在战斗中启用，获瞬步后从东门保持高程进入S09下山箭廊。",
+    id: "s08", screen: 7, name: "守门校场", role: "精英 / 能力", entryY: 300, exitY: 300, entryCollider: "C58", exitCollider: "C63",
+    mainPath: "M0 300H1672", upperPaths: ["M280 170H1390"],
+    gameplayNote: "校场从西侧入口到东门出口保持同一高地平面；全屏封锁只在战斗中启用，获瞬步后从东门无台阶进入S09下山箭廊。",
     colliders: [
       floor("C58", "校场西侧齐平入口", 0, 300, 240, "与S07末段及校场主战平面完全齐平"), floor("C59", "校场西侧平地", 240, 300, 180, "入口不再设置额外落差"),
-      floor("C60", "高地校场主战地板", 420, 300, 800, "完整精英战空间，禁止中央障碍"), floor("C61", "校场东侧缓阶", 1220, 280, 220, "战后回到高地出口"),
-      floor("C62", "高地东门缓冲", 1440, 260, 120, "开门后的安全缓冲"), floor("C63", "下山箭廊接驳", 1560, 260, 112, "保持高程进入S09，再由箭廊逐段下山"),
+      floor("C60", "高地校场主战地板", 420, 300, 800, "完整精英战空间，禁止中央障碍"), floor("C61", "校场东侧连续平地", 1220, 300, 220, "取消两级上行台阶，与主战地板齐平"),
+      floor("C62", "高地东门平地缓冲", 1440, 300, 120, "开门后的齐平安全缓冲"), floor("C63", "下山箭廊齐平接驳", 1560, 300, 112, "以Y300进入S09，再由箭廊连续下山"),
       { id: "C64", name: "校场观战檐", kind: "oneway", x: 280, y: 170, w: 1110, h: 18, note: "高地上层观战轮廓，不允许敌人落入" },
       { id: "C65", name: "西侧Boss战封门", kind: "boundary", x: 250, y: 70, w: 24, h: 230, note: "默认无碰撞；Boss战开始启用，击杀Boss后解除", activation: { initial: "disabled", enableOn: "boss-combat-start", disableOn: "boss-defeated", encounter: "s08-gate-boss" } },
       { id: "C66", name: "东侧Boss战封门", kind: "boundary", x: 1410, y: 60, w: 24, h: 220, note: "默认无碰撞；Boss战开始启用，击杀Boss后解除", activation: { initial: "disabled", enableOn: "boss-combat-start", disableOn: "boss-defeated", encounter: "s08-gate-boss" } },
     ],
     buildings: [
-      { id: "A26", name: "高地校场西门楼", x0: 20, y0: 40, x1: 300, y1: 260, material: "旗门 / 铜钉木门 / 山壁基座", shape: "gate" },
+      { id: "A26", name: "高地校场西门楼", x0: 20, y0: 40, x1: 300, y1: 300, material: "旗门 / 铜钉木门 / 山壁基座", shape: "gate" },
       { id: "A27", name: "守门高地校场旗阵", x0: 320, y0: 70, x1: 1360, y1: 300, material: "战旗 / 铜钟 / 高地排水砖", shape: "arena" },
-      { id: "A28", name: "高地校场东门楼", x0: 1390, y0: 40, x1: 1660, y1: 260, material: "开启式闸门 / 能力刻印 / 下山门", shape: "tower" },
-    ], encounters: [{ x: 680, y: 300, label: "W1 刀客 ×2", tone: "wave" }, { x: 1030, y: 300, label: "W2 赤枪校尉", tone: "elite" }, { x: 1320, y: 280, label: "获得：瞬步", tone: "system" }],
+      { id: "A28", name: "高地校场东门楼", x0: 1390, y0: 40, x1: 1660, y1: 300, material: "开启式闸门 / 能力刻印 / 下山门", shape: "tower" },
+    ], encounters: [{ x: 680, y: 300, label: "W1 刀客 ×2", tone: "wave" }, { x: 1030, y: 300, label: "W2 赤枪校尉", tone: "elite" }, { x: 1320, y: 300, label: "获得：瞬步", tone: "system" }],
   },
   {
-    id: "s09", screen: 8, name: "雨亭箭廊", role: "能力验证", entryY: 260, exitY: 600, entryCollider: "C67", exitCollider: "C71",
-    mainPath: "M0 260L260 360H680L720 470H1100L1180 560H1460L1672 600", upperPaths: ["M260 160H500", "M720 270H960", "M1180 380H1420"],
-    gameplayNote: "从S08高地出门后立即沿连续斜面下山，不设置入口台阶；三座雨亭同时提供弩线掩体和安全落脚，最终回到前庭常规高程。",
+    id: "s09", screen: 8, name: "雨亭箭廊", role: "能力验证", entryY: 300, exitY: 600, entryCollider: "C67", exitCollider: "C71",
+    mainPath: "M0 300L260 360H680L720 470H1100L1180 560H1460L1672 600", upperPaths: ["M260 160H500", "M720 270H960", "M1180 380H1420"],
+    gameplayNote: "从S08高地出门后立即沿连续斜面下山，不设置入口台阶；各段箭线地板之间以短斜面衔接，避免走下大台阶时凭空坠落；三座雨亭同时提供弩线掩体和安全落脚，最终回到前庭常规高程。",
     colliders: [
-      slopeFloor("C67", "箭廊入口连续下坡", 0, 260, 360, 260, "承接S08高地东门并立即下坡；取消入口水平台阶"), floor("C68", "第一下山箭线地板", 260, 360, 420, "承接入口斜面并验证瞬步"),
-      floor("C69", "第二下山箭线地板", 680, 470, 420, "第二段下降并增加交错射线"), floor("C70", "第三下山箭线地板", 1100, 560, 360, "最后一段回到前庭高程"),
-      floor("C71", "前庭接驳地板", 1460, 600, 212, "贴齐S10入口"),
+      slopeFloor("C67", "箭廊入口连续下坡", 0, 300, 360, 260, "从S08的Y300齐平接点开始下坡；入口无台阶、无高度突变"),
+      floor("C68", "第一下山箭线地板", 260, 360, 420, "承接入口斜面并验证瞬步"),
+      slopeFloor("C68S", "第一至二箭线斜接", 680, 360, 470, 40, "贴合主路折线，避免110px悬空坠落"),
+      floor("C69", "第二下山箭线地板", 720, 470, 380, "第二段下降并增加交错射线"),
+      slopeFloor("C69S", "第二至三箭线斜接", 1100, 470, 560, 80, "贴合主路折线，保持连续落脚"),
+      floor("C70", "第三下山箭线地板", 1180, 560, 280, "最后一段回到前庭高程"),
+      slopeFloor("C70S", "山脚前庭斜接", 1460, 560, 600, 50, "缓降接入前庭接驳地板"),
+      floor("C71", "前庭接驳地板", 1510, 600, 162, "贴齐S10入口"),
       { id: "C72", name: "高地西雨亭屋面", kind: "oneway", x: 260, y: 160, w: 240, h: 18, note: "第一弩手平台" },
       { id: "C73", name: "山腰中雨亭屋面", kind: "oneway", x: 720, y: 270, w: 240, h: 18, note: "第二弩手平台" },
       { id: "C74", name: "山脚东雨亭屋面", kind: "oneway", x: 1180, y: 380, w: 240, h: 18, note: "第三弩手平台" },
@@ -285,7 +315,7 @@ export const ADDITIONAL_GATE_CONSTRUCTION: readonly GateConstructionSpec[] = [
   {
     id: "s10", screen: 9, name: "山门前庭", role: "常规战斗", entryY: 600, exitY: 590, entryCollider: "C76", exitCollider: "C80",
     mainPath: "M0 600H1672", upperPaths: ["M220 470H500", "M1170 455H1460"],
-    gameplayNote: "积水只占中央三分之一并降低移速；两侧干地保证玩家不会同时被近战、弩线和减速锁死。",
+    gameplayNote: "积水只占中央三分之一并降低移速；两侧干地保证玩家不会同时被近战、弩线和减速锁死。西、东装饰组分别以Y600和Y590为落地基线，禁止悬空。",
     colliders: [
       floor("C76", "前庭西口", 0, 600, 300, "承接箭廊"), floor("C77", "西侧干地", 300, 600, 360, "近战绕背区"),
       floor("C78", "中央积水基底", 660, 610, 420, "浅水减速但不改变角色落脚高度"), floor("C79", "东侧干地", 1080, 590, 360, "通向闸口的安全线"),
@@ -297,8 +327,10 @@ export const ADDITIONAL_GATE_CONSTRUCTION: readonly GateConstructionSpec[] = [
     ],
     buildings: [
       { id: "A32", name: "西碑亭", x0: 180, y0: 390, x1: 540, y1: 600, material: "断碑 / 雨亭", shape: "pavilion" },
+      { id: "A32P", name: "西侧落地装饰组", x0: 360, y0: 500, x1: 600, y1: 600, material: "水缸 / 碑片 / 湿草；底边锁定Y600", shape: "prop" },
       { id: "A33", name: "中央积水庭院", x0: 620, y0: 570, x1: 1120, y1: 650, material: "浅水 / 青砖倒影", shape: "water" },
       { id: "A34", name: "东碑亭", x0: 1130, y0: 380, x1: 1490, y1: 590, material: "完整碑亭 / 闸门前景", shape: "pavilion" },
+      { id: "A34P", name: "东侧落地装饰组", x0: 1450, y0: 500, x1: 1650, y1: 590, material: "残碑 / 碎瓦 / 湿草；底边锁定Y590", shape: "prop" },
     ], encounters: [{ x: 470, y: 600, label: "刀客 A", tone: "basic" }, { x: 900, y: 610, label: "刀客 B", tone: "basic" }, { x: 1310, y: 455, label: "弩手", tone: "range" }],
   },
   {
@@ -308,7 +340,7 @@ export const ADDITIONAL_GATE_CONSTRUCTION: readonly GateConstructionSpec[] = [
     colliders: [
       floor("C85", "城楼西口", 0, 590, 260, "承接前庭"), floor("C86", "盾卫战西地板", 260, 590, 430, "西侧绕背空间"),
       floor("C87", "闸机中央地板", 690, 590, 360, "绞盘安全操作区"), floor("C88", "盾卫战东地板", 1050, 590, 270, "东侧破盾空间"),
-      floor("C89", "铜门下坡", 1320, 620, 180, "闸门开启后的下行"), floor("C90", "驿道接驳地板", 1500, 620, 172, "贴齐S12入口"),
+      slopeFloor("C89", "铜门下坡", 1320, 590, 620, 180, "闸门开启后的连续下行，取消30px悬空落差"), floor("C90", "驿道接驳地板", 1500, 620, 172, "贴齐S12入口"),
       { id: "C91", name: "西城楼二层", kind: "oneway", x: 260, y: 390, w: 460, h: 18, note: "观察与绕行平台" },
       { id: "C92", name: "东城楼弩台", kind: "oneway", x: 960, y: 370, w: 460, h: 18, note: "屋脊弩手站位" },
       { id: "C93", name: "城楼Boss战封门", kind: "boundary", x: 1450, y: 280, w: 30, h: 340, note: "默认无碰撞；Boss战开始启用，击杀Boss后解除", activation: { initial: "disabled", enableOn: "boss-combat-start", disableOn: "boss-defeated", encounter: "s11-gate-boss" } },
@@ -325,8 +357,10 @@ export const ADDITIONAL_GATE_CONSTRUCTION: readonly GateConstructionSpec[] = [
     mainPath: "M0 620L360 625L760 635L1180 645L1672 650", upperPaths: ["M420 500H760"],
     gameplayNote: "全屏不封锁；驿棚遮挡承担旧区卸载，青砖比例和悬灯密度由西向东平滑增加。",
     colliders: [
-      floor("C95", "驿道西口", 0, 620, 300, "承接雨蚀铜门"), floor("C96", "湿岩驿道", 300, 625, 380, "湿岩与青砖混合段"),
-      floor("C97", "驿棚遮挡地板", 680, 635, 420, "流送遮挡主段，不改变速度"), floor("C98", "青砖旧道", 1100, 645, 360, "旧城材质占主导"),
+      slopeFloor("C95", "驿道西口", 0, 620, 625, 300, "承接雨蚀铜门并缓接入湿岩段"),
+      slopeFloor("C96", "湿岩驿道", 300, 625, 635, 380, "湿岩与青砖混合段，连续小台阶"),
+      slopeFloor("C97", "驿棚遮挡地板", 680, 635, 645, 420, "流送遮挡主段，连续落脚不悬空"),
+      slopeFloor("C98", "青砖旧道", 1100, 645, 650, 360, "旧城材质占主导，缓升至出口高程"),
       floor("C99", "旧城连续出口", 1460, 650, 212, "无切场进入悬灯旧城过渡带"),
       { id: "C100", name: "驿棚屋面", kind: "oneway", x: 420, y: 500, w: 340, h: 18, note: "可选观察位，不放置封锁敌人" },
     ],

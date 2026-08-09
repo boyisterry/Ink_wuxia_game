@@ -120,35 +120,16 @@ const effects = await sharp(Buffer.from(`
 await sharp(effects).toFile(path.join(layersDir, "40-effects.png"));
 
 const foundationTexture = await sharp(files.s07Foundation)
-  .extract({ left: 1320, top: 260, width: 352, height: 681 })
+  .extract({ left: 1320, top: 300, width: 352, height: 641 })
   .png()
   .toBuffer();
-const continuousFoundation = await buildMirroredFoundationTexture(foundationTexture, 352, width, 681);
-const foundationSegments = [
-  { left: 0, top: 300, width: 240, height: 641 },
-  { left: 240, top: 300, width: 180, height: 641 },
-  { left: 420, top: 300, width: 800, height: 641 },
-  { left: 1220, top: 280, width: 220, height: 661 },
-  { left: 1440, top: 260, width: 120, height: 681 },
-  { left: 1560, top: 260, width: 112, height: 681 },
-];
-const foundationInputs = [];
-for (const segment of foundationSegments) {
-  foundationInputs.push({
-    input: await sharp(continuousFoundation)
-      .extract({ left: segment.left, top: segment.top - 260, width: segment.width, height: segment.height })
-      .png()
-      .toBuffer(),
-    left: segment.left,
-    top: segment.top,
-  });
-}
+const continuousFoundation = await buildMirroredFoundationTexture(foundationTexture, 352, width, 641);
 const foundationCap = await sharp(Buffer.from(`
 <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
-  <path d="M0 300H1220V280H1440V260H1672" fill="none" stroke="#151a19" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M0 300H1672" fill="none" stroke="#151a19" stroke-width="6"/>
 </svg>`)).png().toBuffer();
 const foundationBase = await blank().composite([
-  ...foundationInputs,
+  { input: continuousFoundation, left: 0, top: 300 },
   { input: foundationCap, left: 0, top: 0 },
 ]).png().toBuffer();
 const foundationContinuation = await fadedContinuation(files.s07Foundation, 340, 82);

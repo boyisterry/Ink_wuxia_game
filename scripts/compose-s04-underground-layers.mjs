@@ -7,6 +7,7 @@ const sceneDir = path.join(assetRoot, "s04-underground");
 const sourceDir = path.join(sceneDir, "source");
 const layersDir = path.join(sceneDir, "layers");
 const transitionDir = path.join(assetRoot, "s04/transition");
+const sharedShrine = path.join(assetRoot, "shared/save-shrine-v1.png");
 const width = 1672;
 const height = 941;
 
@@ -63,11 +64,17 @@ const groundedDecoration = await sharp(decorationSource)
 const landingClearMask = await sharp({
   create: { width: 180, height: 210, channels: 4, background: { r: 255, g: 255, b: 255, alpha: 1 } },
 }).png().toBuffer();
+const shrineSprite = await sharp(sharedShrine)
+  .trim({ background: { r: 0, g: 0, b: 0, alpha: 0 }, threshold: 2 })
+  .resize(50, 48, { fit: "fill", kernel: sharp.kernel.lanczos3 })
+  .png()
+  .toBuffer();
 const decoration = await transparentCanvas().composite([
   { input: hangingDecoration, left: 0, top: 0 },
   { input: groundedDecoration, left: 620, top: 665 },
   // H01's 140px channel plus 20px safety on both sides must remain empty.
   { input: landingClearMask, left: 700, top: 570, blend: "dest-out" },
+  { input: shrineSprite, left: 1315, top: 602 },
 ]).png().toBuffer();
 await sharp(decoration).toFile(path.join(layersDir, "30-decoration.png"));
 

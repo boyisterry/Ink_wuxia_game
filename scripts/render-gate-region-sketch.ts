@@ -1,7 +1,7 @@
 import path from "node:path";
 import { mkdir } from "node:fs/promises";
 import sharp from "sharp";
-import { ADDITIONAL_GATE_CONSTRUCTION, type ConstructionBuildingSpec, type ConstructionColliderSpec } from "../app/map/gate/construction.ts";
+import { ADDITIONAL_GATE_CONSTRUCTION, GATE_SHRINE_PLACEMENTS, type ConstructionBuildingSpec, type ConstructionColliderSpec } from "../app/map/gate/construction.ts";
 import { GATE_SCREENS } from "../app/map/gate/screens.ts";
 
 const root = process.cwd();
@@ -14,21 +14,22 @@ const undergroundScreensDir = path.join(undergroundDir, "screens");
 const W = 1672;
 const H = 941;
 const TOTAL_W = W * 12;
+const sharedShrinePath = path.join(root, "public/assets/maps/gate/shared/save-shrine-v1.png");
 await Promise.all([layersDir, screensDir, undergroundLayersDir, undergroundScreensDir].map((directory) => mkdir(directory, { recursive: true })));
 
 type SketchScreen = { screen: number; colliders: readonly ConstructionColliderSpec[]; buildings: readonly ConstructionBuildingSpec[] };
-const floor = (id: string, name: string, x: number, y: number, w: number): ConstructionColliderSpec => ({ id, name, kind: "solid", x, y, w, h: H - y, note: "" });
+const floor = (id: string, name: string, x: number, y: number, w: number, requiresJump = false): ConstructionColliderSpec => ({ id, name, kind: "solid", x, y, w, h: H - y, note: "", requiresJump });
 const building = (id: string, name: string, x0: number, y0: number, x1: number, y1: number, shape: ConstructionBuildingSpec["shape"]): ConstructionBuildingSpec => ({ id, name, x0, y0, x1, y1, shape, material: "" });
 
 const firstScreens: SketchScreen[] = [
   { screen: 0, colliders: [
-    floor("C01", "残院主地面", 0, 720, 1180), floor("C02", "东侧碎石缓坡", 1180, 700, 170), floor("C03", "破墙前台阶", 1350, 674, 190), floor("C04", "跨屏接驳地板", 1540, 674, 132),
+    floor("C01", "残院主地面", 0, 720, 1180), floor("C02", "东侧碎石缓坡", 1180, 700, 170), floor("C03", "破墙前台阶", 1350, 674, 190, true), floor("C04", "跨屏接驳地板", 1540, 674, 132),
     { id: "C06", name: "坍塌木梁", kind: "oneway", x: 500, y: 600, w: 230, h: 20, note: "" }, { id: "C07", name: "佛龛残台", kind: "oneway", x: 775, y: 542, w: 225, h: 20, note: "" }, { id: "C08", name: "东殿断檐", kind: "oneway", x: 1045, y: 478, w: 250, h: 20, note: "" },
   ], buildings: [
     building("A01", "破庙西墙", 86, 420, 396, 720, "shed"), building("A02", "漏雨正殿", 385, 350, 905, 720, "tower"), building("A03", "东侧偏殿", 930, 405, 1290, 720, "shed"), building("A04", "破墙出口", 1390, 455, 1570, 674, "gate"),
   ] },
   { screen: 1, colliders: [
-    floor("C09", "S02接驳入口", 0, 674, 220), floor("C10", "村道主地面", 220, 674, 500), floor("C11", "一级抬升石阶", 720, 660, 180), floor("C12", "二级抬升石阶", 900, 646, 200), floor("C13", "村道高台", 1100, 632, 280), floor("C14", "跨屏接驳至S03", 1380, 632, 292),
+    floor("C09", "S02接驳入口", 0, 674, 220), floor("C10", "村道主地面", 220, 674, 500), floor("C11", "一级抬升石阶", 720, 660, 180, true), floor("C12", "二级抬升石阶", 900, 646, 200, true), floor("C13", "村道高台", 1100, 632, 280, true), floor("C14", "跨屏接驳至S03", 1380, 632, 292),
     { id: "C15", name: "西民居屋檐", kind: "oneway", x: 260, y: 540, w: 250, h: 18, note: "" }, { id: "C16", name: "东民居错层檐", kind: "oneway", x: 820, y: 505, w: 270, h: 18, note: "" }, { id: "C17", name: "雨水木槽", kind: "oneway", x: 530, y: 590, w: 170, h: 16, note: "" },
   ], buildings: [
     building("A05", "西侧民居", 240, 430, 520, 674, "shed"), building("A06", "东侧错层民居", 780, 390, 1120, 646, "shed"), building("A07", "雨水木槽架", 500, 560, 720, 620, "bridge"), building("A08", "竹篱走廊", 600, 400, 980, 674, "corridor"), building("A09", "村缘石桥引道", 1380, 480, 1672, 632, "bridge"),
@@ -73,7 +74,11 @@ for (const screen of screens) {
     if (part.route === "underground") continue;
     const x0 = ox + part.x0, x1 = ox + part.x1, width = x1 - x0, center = (x0 + x1) / 2;
     const body = `<rect x="${x0}" y="${part.y0}" width="${width}" height="${part.y1 - part.y0}" fill="#43433f" fill-opacity=".16" stroke="#252522" stroke-width="9"/>`;
-    if (part.shape === "slope") architectureParts.push(`<path d="M${x0} ${part.y1}L${x1} ${part.y0}V${part.y1}Z" fill="#41413d" fill-opacity=".2" stroke="#262623" stroke-width="10"/>`);
+    if (part.shape === "stairs" && part.steps?.length) {
+      const profile = part.steps.map((step) => ({ x: ox + step.x, y: step.y }));
+      const top = `M${profile[0].x} ${profile[0].y}${profile.slice(1).map((step) => `H${step.x}V${step.y}`).join("")}H${x1}`;
+      architectureParts.push(`<path d="${top}V${part.y1}H${x0}Z" fill="#41413d" fill-opacity=".2" stroke="#262623" stroke-width="10" stroke-linejoin="round"/>`);
+    } else if (part.shape === "slope") architectureParts.push(`<path d="M${x0} ${part.y1}L${x1} ${part.y0}V${part.y1}Z" fill="#41413d" fill-opacity=".2" stroke="#262623" stroke-width="10"/>`);
     else if (part.shape === "water") architectureParts.push(`<g fill="none" stroke="#596d6f" stroke-width="8" opacity=".55">${Array.from({ length: 4 }, (_, row) => `<path d="M${x0} ${part.y0 + 16 + row * 17}q55-16 110 0t110 0t110 0t110 0"/>`).join("")}</g>`);
     else {
       architectureParts.push(body);
@@ -110,7 +115,11 @@ for (const screen of screens) {
     const x = ox + collider.x;
     if (collider.kind === "solid") {
       const visualHeight = screen.screen >= 3 && screen.screen <= 5 ? H - collider.y : collider.h;
-      foundationParts.push(`<rect x="${x}" y="${collider.y}" width="${collider.w}" height="${visualHeight}" fill="#1d211f" fill-opacity=".72"/><path d="M${x} ${collider.y}H${x + collider.w}" stroke="#111412" stroke-width="13"/>`);
+      if (collider.slopeEndY !== undefined) {
+        foundationParts.push(`<path d="M${x} ${collider.y}L${x + collider.w} ${collider.slopeEndY}V${H}H${x}Z" fill="#1d211f" fill-opacity=".72"/><path d="M${x} ${collider.y}L${x + collider.w} ${collider.slopeEndY}" stroke="#111412" stroke-width="13"/>`);
+      } else {
+        foundationParts.push(`<rect x="${x}" y="${collider.y}" width="${collider.w}" height="${visualHeight}" fill="#1d211f" fill-opacity=".72"/><path d="M${x} ${collider.y}H${x + collider.w}" stroke="#111412" stroke-width="13"/>`);
+      }
       if (visualHeight > 90) foundationParts.push(`<path d="M${x + 20} ${collider.y + 34}q${collider.w * .25} 25 ${collider.w * .5} 0t${collider.w * .5} 0" fill="none" stroke="#53605b" stroke-width="5" opacity=".45"/>`);
     } else if (collider.kind === "oneway") {
       foundationParts.push(`<path d="M${x} ${collider.y}H${x + collider.w}" stroke="#171b19" stroke-width="15"/><path d="M${x + 18} ${collider.y + 11}l18 30m45-30l14 42m52-42l18 28" stroke="#343d39" stroke-width="5"/>`);
@@ -127,7 +136,21 @@ const renderLayer = async (name: string, parts: string[], opaque = false) => {
 };
 const background = await renderLayer("00-background.png", backgroundParts, true);
 const architecture = await renderLayer("20-background-architecture.png", architectureParts);
-const decoration = await renderLayer("30-decoration.png", decorationParts);
+const decorationBase = await renderLayer("30-decoration.png", decorationParts);
+const surfaceShrines: Array<{ input: Buffer; left: number; top: number }> = [];
+for (const shrine of GATE_SHRINE_PLACEMENTS.filter((item) => item.route === "surface")) {
+  surfaceShrines.push({
+    input: await sharp(sharedShrinePath)
+      .trim({ background: { r: 0, g: 0, b: 0, alpha: 0 }, threshold: 2 })
+      .resize(shrine.w, shrine.h, { fit: "fill", kernel: sharp.kernel.lanczos3 })
+      .png()
+      .toBuffer(),
+    left: shrine.screen * W + shrine.x,
+    top: shrine.y,
+  });
+}
+const decoration = await sharp(decorationBase).composite(surfaceShrines).png().toBuffer();
+await sharp(decoration).toFile(path.join(layersDir, "30-decoration.png"));
 const effects = await renderLayer("40-effects.png", effectsParts);
 const foundation = await renderLayer("50-foundation.png", foundationParts);
 const composite = await sharp(background).composite([{ input: architecture }, { input: decoration }, { input: effects }, { input: foundation }]).png().toBuffer();
@@ -187,7 +210,21 @@ const renderUndergroundLayer = async (name: string, parts: string[], opaque = fa
 };
 const undergroundBackground = await renderUndergroundLayer("00-background.png", undergroundBackgroundParts, true);
 const undergroundArchitecture = await renderUndergroundLayer("20-background-architecture.png", undergroundArchitectureParts);
-const undergroundDecoration = await renderUndergroundLayer("30-decoration.png", undergroundDecorationParts);
+const undergroundDecorationBase = await renderUndergroundLayer("30-decoration.png", undergroundDecorationParts);
+const undergroundShrines: Array<{ input: Buffer; left: number; top: number }> = [];
+for (const shrine of GATE_SHRINE_PLACEMENTS.filter((item) => item.route === "underground")) {
+  undergroundShrines.push({
+    input: await sharp(sharedShrinePath)
+      .trim({ background: { r: 0, g: 0, b: 0, alpha: 0 }, threshold: 2 })
+      .resize(shrine.w, shrine.h, { fit: "fill", kernel: sharp.kernel.lanczos3 })
+      .png()
+      .toBuffer(),
+    left: (shrine.screen - 3) * W + shrine.x,
+    top: shrine.y,
+  });
+}
+const undergroundDecoration = await sharp(undergroundDecorationBase).composite(undergroundShrines).png().toBuffer();
+await sharp(undergroundDecoration).toFile(path.join(undergroundLayersDir, "30-decoration.png"));
 const undergroundEffects = await renderUndergroundLayer("40-effects.png", undergroundEffectsParts);
 const undergroundFoundation = await renderUndergroundLayer("50-foundation.png", undergroundFoundationParts);
 const undergroundComposite = await sharp(undergroundBackground).composite([

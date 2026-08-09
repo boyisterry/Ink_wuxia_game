@@ -18,6 +18,7 @@ const files = {
   architectureSource: path.join(s07Dir, "source/20-background-architecture-supported-v3.png"),
   decorationSource: path.join(s07Dir, "source/30-decoration-keyed.png"),
   s08Decoration: path.join(assetRoot, "s08/layers/30-decoration.png"),
+  shrine: path.join(assetRoot, "shared/save-shrine-v1.png"),
 };
 
 const blank = () => sharp({
@@ -111,6 +112,12 @@ for (const spec of summitFlagSpecs) {
     top: spec.top,
   });
 }
+const respawnShrine = await sharp(files.shrine)
+  .trim({ background: { r: 0, g: 0, b: 0, alpha: 0 }, threshold: 2 })
+  .resize(50, 48, { fit: "fill", kernel: sharp.kernel.lanczos3 })
+  .png()
+  .toBuffer();
+decorationInputs.push({ input: respawnShrine, left: 395, top: 542 });
 const decoration = await blank().composite(decorationInputs).png().toBuffer();
 await sharp(decoration).toFile(path.join(layersDir, "30-decoration.png"));
 

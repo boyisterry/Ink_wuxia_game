@@ -6,7 +6,7 @@
 
 1. `layers/00-background-cavern.png`：冷灰洞窟纵深、渗水岩壁。
 2. `layers/20-background-architecture.png`：地下石砌排水廊、支柱及通向 S05 的右侧拱道。
-3. `layers/30-decoration.png`：根须、罐子、绳索、供奉龛；H01 落点保持清空。
+3. `layers/30-decoration.png`：根须、罐子、绳索，以及复用 `../shared/save-shrine-v1.png` 的半人高 SH02 土地神龛；H01 落点保持清空。
 4. `layers/40-effects.png`：地下薄雾、滴水、水纹与落点尘雾。
 5. `layers/50-foundation.png`：与施工碰撞完全对齐的顶板、地面和右侧供奉龛检修台；检修台带墙体石托臂，不与地面罐子重叠。
 

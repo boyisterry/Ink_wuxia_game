@@ -76,24 +76,7 @@ for (const { crop, place } of architecturePieces) {
     top: place.top,
   });
 }
-const platformStructures = await sharp(Buffer.from(`
-<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
-  <defs>
-    <linearGradient id="stone" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#8d9693"/><stop offset=".22" stop-color="#59615f"/><stop offset="1" stop-color="#242a29"/></linearGradient>
-    <pattern id="blocks" width="74" height="31" patternUnits="userSpaceOnUse"><rect width="74" height="31" fill="url(#stone)"/><path d="M0 1H74M0 30H74M1 0V31M73 0V31" fill="none" stroke="#171c1b" stroke-width="3"/><path d="M9 15q13-7 29 0t28-1" fill="none" stroke="#b0b7b3" opacity=".18" stroke-width="2"/></pattern>
-  </defs>
-  <g stroke="#171c1b" stroke-linejoin="round">
-    <path d="M520 475H790V498H520Z" fill="url(#blocks)" stroke-width="5"/>
-    <path d="M548 498H580V610H548ZM730 498H762V610H730Z" fill="url(#blocks)" stroke-width="5"/>
-    <path d="M1050 445H1360V468H1050Z" fill="url(#blocks)" stroke-width="5"/>
-    <path d="M1082 468H1116V600H1082ZM1294 468H1328V600H1294Z" fill="url(#blocks)" stroke-width="5"/>
-  </g>
-  <g fill="none" stroke="#c5cbc7" opacity=".3" stroke-width="2"><path d="M528 480H782M1058 450H1352"/></g>
-</svg>`)).png().toBuffer();
-const architecture = await blank().composite([
-  ...architectureInputs,
-  { input: platformStructures, left: 0, top: 0 },
-]).png().toBuffer();
+const architecture = await blank().composite(architectureInputs).png().toBuffer();
 await sharp(architecture).toFile(path.join(layersDir, "20-background-architecture.png"));
 
 const decorationSource = await sharp(files.decorationSource)

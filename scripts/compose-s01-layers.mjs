@@ -14,6 +14,7 @@ const files = {
   architecture: path.join(layersDir, "20-architecture.png"),
   platforms: path.join(layersDir, "40-platforms-source.png"),
   ground: path.join(layersDir, "50-ground-source.png"),
+  shrine: path.join(outputDir, "shared/save-shrine-v1.png"),
 };
 
 const neutralized = (input) =>
@@ -111,7 +112,16 @@ await sharp(groundLayer).toFile(path.join(layersDir, "50-foundation.png"));
 const transparentLayer = await sharp({ create: { width, height, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
   .png()
   .toBuffer();
-await sharp(transparentLayer).toFile(path.join(layersDir, "30-decoration.png"));
+const shrineSprite = await sharp(files.shrine)
+  .trim({ background: { r: 0, g: 0, b: 0, alpha: 0 }, threshold: 2 })
+  .resize(50, 48, { fit: "fill", kernel: sharp.kernel.lanczos3 })
+  .png()
+  .toBuffer();
+const decorationLayer = await sharp(transparentLayer)
+  .composite([{ input: shrineSprite, left: 315, top: 672 }])
+  .png()
+  .toBuffer();
+await sharp(decorationLayer).toFile(path.join(layersDir, "30-decoration.png"));
 await sharp(transparentLayer).toFile(path.join(layersDir, "40-effects.png"));
 
 const { buffer: background, gains: backgroundGains } = await gradeCoolInkBackground(files.background, width, height);
@@ -120,7 +130,7 @@ await sharp(background).toFile(path.join(layersDir, "00-background-mountains.png
 const composite = await sharp(background)
   .composite([
     { input: architectureLayer, blend: "multiply" },
-    { input: transparentLayer, blend: "over" },
+    { input: decorationLayer, blend: "over" },
     { input: transparentLayer, blend: "over" },
     { input: groundLayer, blend: "multiply" },
   ])

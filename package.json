@@ -18,8 +18,13 @@
     "art:s06": "node scripts/compose-s06-layers.mjs",
     "art:s07": "node scripts/compose-s07-layers.mjs",
     "art:s08": "node scripts/compose-s08-layers.mjs",
+    "art:s09:entry-fix": "node scripts/fix-s09-entry-height.mjs",
+    "art:s10": "node scripts/compose-s10-layers.mjs",
+    "art:s11": "node scripts/compose-s11-layers.mjs",
+    "art:s12": "node scripts/compose-s12-layers.mjs",
     "art:s04-underground": "node scripts/compose-s04-underground-layers.mjs",
     "art:s05-underground": "node scripts/compose-s05-underground-layers.mjs",
+    "art:s06-underground": "node scripts/compose-s06-underground-layers.mjs",
     "lint": "bash scripts/sites-env.sh -- eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "bash scripts/sites-env.sh -- drizzle-kit generate"
   },

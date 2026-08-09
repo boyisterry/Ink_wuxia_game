@@ -66,15 +66,6 @@ const architectureWithoutDuplicateBridge = await sharp(architectureBase)
   .composite([{ input: duplicateBridgeMask, left: 0, top: 0, blend: "dest-out" }])
   .png()
   .toBuffer();
-const exactPlatforms = Buffer.from(`
-<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
-  <g fill="#77746d" stroke="#252724" stroke-width="4" stroke-linejoin="round">
-    <path d="M620 497l34-3 42 2 38-3 44 3 42-2 40 3v15l-23 5-47-2-39 3-48-3-43 2Z"/>
-    <path d="M1120 447l31-3 42 2 37-3 44 3 34-2 32 3v15l-31 5-42-2-39 3-45-3-43 2Z"/>
-  </g>
-  <g stroke="#aaa49a" stroke-width="2" opacity=".62"><path d="M636 500l49-1m17 1 55-1m18 1 59-1M1137 450l48-1m18 1 49-1m17 1 48-1"/></g>
-  <g stroke="#353735" stroke-width="2" opacity=".7"><path d="M687 497v16m79-17v17M1191 447v16m70-17v17"/></g>
-</svg>`);
 const sharedTransitionS03 = await sharp(files.sharedTransition)
   .extract({ left: 620, top: 0, width: 140, height: 210 })
   .png()
@@ -82,7 +73,6 @@ const sharedTransitionS03 = await sharp(files.sharedTransition)
 const architecture = await sharp(architectureWithoutDuplicateBridge)
   .composite([
     { input: sharedTransitionS03, left: 0, top: 422 },
-    { input: await sharp(exactPlatforms).png().toBuffer(), left: 0, top: 0 },
   ])
   .greyscale()
   .png()
@@ -179,6 +169,8 @@ const composite = await sharp(background)
   .toBuffer();
 await sharp(composite).toFile(path.join(assetRoot, "s03-ink-background-layered-1672.png"));
 await sharp(composite).resize(3840, 2160, { fit: "fill", kernel: sharp.kernel.lanczos3 }).png().toFile(path.join(assetRoot, "s03-ink-background-layered-4k.png"));
+await sharp(composite).toFile(path.join(assetRoot, "s03-ink-background-layered-seam-v2-1672.png"));
+await sharp(composite).resize(3840, 2160, { fit: "fill", kernel: sharp.kernel.lanczos3 }).png().toFile(path.join(assetRoot, "s03-ink-background-layered-seam-v2-4k.png"));
 
 await sharp({ create: { width: width * 2, height, channels: 3, background: { r: 239, g: 233, b: 220 } } })
   .composite([

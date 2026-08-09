@@ -11,6 +11,7 @@ const neutral = { r: 255, g: 255, b: 255 };
 
 const files = {
   s01: path.join(outputDir, "s01-ink-background-layered-1672.png"),
+  s03: path.join(outputDir, "s03-ink-background-layered-1672.png"),
   seamBamboo: path.join(outputDir, "shared/s01-s02-seam-bamboo.png"),
   s02S03Bamboo: path.join(outputDir, "shared/s02-s03-seam-bamboo-world.png"),
   background: path.join(layersDir, "00-background-mountains-panorama.png"),
@@ -20,6 +21,73 @@ const files = {
 };
 
 const blank = () => sharp({ create: { width, height, channels: 3, background: neutral } });
+
+const regionMoments = async (input, left, regionWidth) => {
+  const { data, info } = await sharp(input).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  const sums = [0, 0, 0];
+  const squares = [0, 0, 0];
+  let count = 0;
+  for (let y = 0; y < info.height; y += 1) {
+    for (let x = left; x < left + regionWidth; x += 1) {
+      const index = (y * info.width + x) * info.channels;
+      for (let channel = 0; channel < 3; channel += 1) {
+        const value = data[index + channel];
+        sums[channel] += value;
+        squares[channel] += value * value;
+      }
+      count += 1;
+    }
+  }
+  return sums.map((sum, channel) => ({
+    mean: sum / count,
+    stdev: Math.sqrt(Math.max(1, squares[channel] / count - (sum / count) ** 2)),
+  }));
+};
+
+async function gradeRightEdgeTowardS03(input, startX = 760, sampleWidth = 480) {
+  const [sourceMoments, targetMoments] = await Promise.all([
+    regionMoments(input, width - sampleWidth, sampleWidth),
+    regionMoments(files.s03, 0, sampleWidth),
+  ]);
+  const gains = sourceMoments.map((source, channel) =>
+    Math.max(.86, Math.min(1.14, targetMoments[channel].stdev / source.stdev)));
+  const offsets = sourceMoments.map((source, channel) =>
+    Math.max(-32, Math.min(32, targetMoments[channel].mean - source.mean * gains[channel])));
+  const { data, info } = await sharp(input).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  const output = Buffer.from(data);
+  for (let y = 0; y < info.height; y += 1) {
+    for (let x = startX; x < width; x += 1) {
+      const progress = (x - startX) / Math.max(1, width - 1 - startX);
+      const blend = progress * progress * (3 - 2 * progress);
+      const index = (y * width + x) * info.channels;
+      for (let channel = 0; channel < 3; channel += 1) {
+        const original = data[index + channel];
+        const graded = original * gains[channel] + offsets[channel];
+        output[index + channel] = Math.round(Math.max(0, Math.min(255, original * (1 - blend) + graded * blend)));
+      }
+    }
+  }
+  return sharp(output, { raw: info }).png().toBuffer();
+}
+
+async function s03FoundationContinuation(stripWidth = 480, floorY = 632) {
+  const { data, info } = await sharp(files.s03)
+    .extract({ left: 0, top: floorY, width: stripWidth, height: height - floorY })
+    .flop()
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const output = Buffer.from(data);
+  for (let y = 0; y < info.height; y += 1) {
+    for (let x = 0; x < stripWidth; x += 1) {
+      const progress = x / Math.max(1, stripWidth - 1);
+      const alpha = progress * progress * (3 - 2 * progress);
+      const index = (y * stripWidth + x) * info.channels + 3;
+      output[index] = Math.round(output[index] * alpha);
+    }
+  }
+  return sharp(output, { raw: info }).png().toBuffer();
+}
 const sprite = async (source, target, trimArtwork = false) => {
   const extracted = await sharp(files.architecture)
     .extract(source)
@@ -215,13 +283,22 @@ const baseComposite = await sharp(background)
 // S02's background was generated as the forward continuation of S01. Do not
 // mirror S01's edge here: the mirrored strip doubled the bamboo and produced a
 // visibly clipped symmetry at the physical screen seam.
-const finalComposite = baseComposite;
+const gradedTowardS03 = await gradeRightEdgeTowardS03(baseComposite);
+const finalComposite = await sharp(gradedTowardS03).composite([
+  { input: await s03FoundationContinuation(), left: width - 480, top: 632 },
+  { input: await sharp(files.s03).extract({ left: 0, top: 0, width: 1, height }).png().toBuffer(), left: width - 1, top: 0 },
+]).png().toBuffer();
 
 await sharp(finalComposite).toFile(path.join(outputDir, "s02-ink-background-layered-1672.png"));
 await sharp(finalComposite)
   .resize(3840, 2160, { fit: "fill", kernel: sharp.kernel.lanczos3 })
   .png()
   .toFile(path.join(outputDir, "s02-ink-background-layered-4k.png"));
+await sharp(finalComposite).toFile(path.join(outputDir, "s02-ink-background-layered-seam-v2-1672.png"));
+await sharp(finalComposite)
+  .resize(3840, 2160, { fit: "fill", kernel: sharp.kernel.lanczos3 })
+  .png()
+  .toFile(path.join(outputDir, "s02-ink-background-layered-seam-v2-4k.png"));
 
 const previewBamboo = await sharp(files.seamBamboo)
   .resize(1244, 700, { fit: "fill", kernel: sharp.kernel.lanczos3 })

@@ -1591,6 +1591,12 @@ kbd {
 .player.combo-3 .attack-sprite {
   inset: -42% -38% 0;
   opacity: 1;
+  /* Heavy frames retain substantially more transparent capture space than the
+     idle cutout. Scale from the sheet's ground edge and lower that edge back
+     onto the physics line so the actor neither shrinks nor appears airborne. */
+  translate: 0 0;
+  transform: translateY(20%) scale(1.24);
+  transform-origin: 50% 100%;
 }
 .player.combo-3.heavy-charging .attack-sprite {
   background-image: url("/assets/player-heavy-charge.webp");

@@ -84,3 +84,12 @@ Original prompt: 好，你来增加一个纯美术预览开关
 - Shared-control regression: after a heavy strike, Gate movement advanced to `worldX=1043`, jump peak remained 181, roll consumed its expected 8 spirit, and no attack/control lock remained.
 - Completed: final production build passes; no browser/page/resource errors were reported in the required game-client runs.
 - TODO: none for this feature.
+
+## 2026-08-12 · Charged-heavy sprite scale and grounding
+
+- Follow-up request: the heavy-strike animation made the whole actor appear smaller and float above the ground.
+- Root cause: the video-derived heavy sheets retain more transparent capture space than the idle cutout, so fitting every frame into the same CSS box reduced the visible actor and left its source-frame bottom padding above the physics line.
+- Fixed: the heavy sprite is uniformly scaled to 1.24× from its bottom-center anchor and receives a 20% downward visual offset. This changes only the artwork layer; the player foot coordinate and collision physics remain untouched.
+- Visual QA: inspected matching Gate idle, 92% charge, full-charge release-impact, and post-release movement screenshots. The visible body now matches the normal actor scale, the feet/impact meet the ground art, and the player stays `grounded` with `footY=groundY=720` throughout.
+- Control regression: after release, movement advanced from world X120 to X256; heavy state returned to idle, all input locks cleared, and no browser errors appeared.
+- TODO: none for this fix.

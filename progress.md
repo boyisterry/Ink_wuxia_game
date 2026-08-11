@@ -71,3 +71,16 @@ Original prompt: 好，你来增加一个纯美术预览开关
 - Tutorial shared-control QA: movement, moving attack, combo input, jump, landing, roll, and direction change all completed with every blocking flag released and no browser errors.
 - Completed: production build passes after the control-lock recovery change.
 - TODO: none for this fix.
+
+## 2026-08-11 · Player charged heavy strike
+
+- Current request: integrate the supplied protagonist charged-heavy animation and complete its VFX, damage, and hit range.
+- Asset work: split the 4.06s / 97-frame green-screen source into transparent `player-heavy-charge.webp` (15 frames) and `player-heavy-release.webp` (18 frames), with green despill and the original ground-ink impact retained.
+- Controls: hold `L` to charge, release to strike; touch controls gain a press-and-hold “重” button. The action costs 20 spirit and is unavailable below that amount.
+- Combat tuning: damage scales from 54 to 86 and forward range from 30 to 40 tutorial-stage percentage points over a 1.1s full charge; the strike auto-releases after 1.5s.
+- Hit rule: one hit is evaluated 420ms into the release, only in the character's facing direction, with a 1.5-point rear overlap tolerance for close contact.
+- VFX: charge aura and meter, full-charge emphasis, source-animation ink impact, ground shockwave, enemy hit flash, and a short stage impact shake.
+- QA so far: full charge dealt exactly 86 damage (260→174); 300ms partial charge dealt 63 (260→197); an enemy behind the facing direction took zero damage; six uses consumed 120 spirit and a seventh input at zero spirit was rejected. Screenshots and text state agreed, with no browser errors.
+- Shared-control regression: after a heavy strike, Gate movement advanced to `worldX=1043`, jump peak remained 181, roll consumed its expected 8 spirit, and no attack/control lock remained.
+- Completed: final production build passes; no browser/page/resource errors were reported in the required game-client runs.
+- TODO: none for this feature.

@@ -19,6 +19,7 @@ type AirState = "grounded" | "rising" | "falling";
 type Facing = "left" | "right";
 type Locomotion = "idle" | "starting" | "running" | "stopping";
 type EnemyAttackPhase = "idle" | "windup" | "active" | "recover";
+type HeavyAttackPhase = "idle" | "charging" | "release";
 
 const clamp = (n: number, min: number, max: number) =>
   Math.min(max, Math.max(min, n));
@@ -144,6 +145,15 @@ const LIGHT_ATTACK_COMBO_OPENS_MS = 330;
 const LIGHT_ATTACK_COMBO_GRACE_MS = 720;
 const LIGHT_ATTACK_TWO_HIT_MS = 185;
 const LIGHT_ATTACK_TWO_DURATION_MS = 460;
+const HEAVY_SPIRIT_COST = 20;
+const HEAVY_MIN_DAMAGE = 54;
+const HEAVY_MAX_DAMAGE = 86;
+const HEAVY_MIN_RANGE = 30;
+const HEAVY_MAX_RANGE = 40;
+const HEAVY_FULL_CHARGE_MS = 1100;
+const HEAVY_AUTO_RELEASE_MS = 1500;
+const HEAVY_RELEASE_HIT_MS = 420;
+const HEAVY_RELEASE_DURATION_MS = 900;
 const ACTION_ASSET_URLS = [
   "/assets/player.png",
   "/assets/player-idle.png",
@@ -152,6 +162,8 @@ const ACTION_ASSET_URLS = [
   "/assets/player-run-stop.webp",
   "/assets/player-attack-1.webp",
   "/assets/player-attack-2.webp",
+  "/assets/player-heavy-charge.webp",
+  "/assets/player-heavy-release.webp",
   "/assets/player-jump-rise.webp",
   "/assets/player-jump-fall.webp",
   "/assets/player-jump-land.webp",
@@ -354,6 +366,10 @@ export default function Home() {
   const [runningJump, setRunningJump] = useState(false);
   const [rolling, setRolling] = useState(false);
   const [attackStep, setAttackStep] = useState(0);
+  const [heavyAttackPhase, setHeavyAttackPhase] =
+    useState<HeavyAttackPhase>("idle");
+  const [heavyChargeRatio, setHeavyChargeRatio] = useState(0);
+  const [heavyImpact, setHeavyImpact] = useState(false);
   const [landing, setLanding] = useState(false);
   const [enemyHit, setEnemyHit] = useState(false);
   const [playerHit, setPlayerHit] = useState(false);
@@ -410,6 +426,10 @@ export default function Home() {
   const comboWindowOpenRef = useRef(false);
   const chainAttackRef = useRef<(() => void) | null>(null);
   const attackToken = useRef(0);
+  const heavyAttackPhaseRef = useRef<HeavyAttackPhase>("idle");
+  const heavyChargeStartedAtRef = useRef(0);
+  const heavyChargeRatioRef = useRef(0);
+  const releaseHeavyAttackRef = useRef<(() => void) | null>(null);
   const timers = useRef<number[]>([]);
   const landingUntilRef = useRef(0);
   const landingToken = useRef(0);
@@ -527,6 +547,10 @@ export default function Home() {
     comboWindowOpenRef.current = false;
     chainAttackRef.current = null;
     attackToken.current += 1;
+    heavyAttackPhaseRef.current = "idle";
+    heavyChargeStartedAtRef.current = 0;
+    heavyChargeRatioRef.current = 0;
+    releaseHeavyAttackRef.current = null;
     resetEnemyAttackState();
     landingUntilRef.current = 0;
     landingToken.current += 1;
@@ -541,6 +565,9 @@ export default function Home() {
     setRunningJump(false);
     setRolling(false);
     setAttackStep(0);
+    setHeavyAttackPhase("idle");
+    setHeavyChargeRatio(0);
+    setHeavyImpact(false);
     setLanding(false);
   }, [clearTimers, resetEnemyAttackState]);
 
@@ -596,7 +623,14 @@ export default function Home() {
       comboQueuedRef.current = false;
       comboWindowOpenRef.current = false;
       chainAttackRef.current = null;
+      heavyAttackPhaseRef.current = "idle";
+      heavyChargeStartedAtRef.current = 0;
+      heavyChargeRatioRef.current = 0;
+      releaseHeavyAttackRef.current = null;
       setAttackStep(0);
+      setHeavyAttackPhase("idle");
+      setHeavyChargeRatio(0);
+      setHeavyImpact(false);
       recovered = true;
     }
 
@@ -622,12 +656,19 @@ export default function Home() {
       comboWindowOpenRef.current = false;
       chainAttackRef.current = null;
       movingRef.current = false;
+      heavyAttackPhaseRef.current = "idle";
+      heavyChargeStartedAtRef.current = 0;
+      heavyChargeRatioRef.current = 0;
+      releaseHeavyAttackRef.current = null;
       resetEnemyAttackState();
       landingUntilRef.current = 0;
       rollingUntilRef.current = 0;
       attackPendingUntilRef.current = 0;
       attackUntilRef.current = 0;
       clearTimers();
+      setHeavyAttackPhase("idle");
+      setHeavyChargeRatio(0);
+      setHeavyImpact(false);
 
       if (delay > 0) later(() => setPhase(outcome), delay);
       else setPhase(outcome);
@@ -1094,6 +1135,103 @@ export default function Home() {
     beginAttack();
   }, [beginAttack, later, locomotion, recoverExpiredControlLocks]);
 
+  const releaseHeavyAttack = useCallback(() => {
+    if (heavyAttackPhaseRef.current !== "charging") return;
+
+    const now = performance.now();
+    const token = attackToken.current;
+    const heldMs = Math.max(0, now - heavyChargeStartedAtRef.current);
+    const chargeRatio = clamp(heldMs / HEAVY_FULL_CHARGE_MS, 0, 1);
+    const damage = Math.round(
+      HEAVY_MIN_DAMAGE + (HEAVY_MAX_DAMAGE - HEAVY_MIN_DAMAGE) * chargeRatio,
+    );
+    const range =
+      HEAVY_MIN_RANGE + (HEAVY_MAX_RANGE - HEAVY_MIN_RANGE) * chargeRatio;
+
+    heavyChargeRatioRef.current = chargeRatio;
+    heavyAttackPhaseRef.current = "release";
+    attackUntilRef.current = now + HEAVY_RELEASE_DURATION_MS + 350;
+    setHeavyChargeRatio(chargeRatio);
+    setHeavyAttackPhase("release");
+
+    later(() => {
+      if (
+        token !== attackToken.current ||
+        heavyAttackPhaseRef.current !== "release" ||
+        phaseRef.current !== "playing"
+      )
+        return;
+
+      setHeavyImpact(true);
+      later(() => setHeavyImpact(false), 180);
+
+      if (chapterRef.current !== "tutorial" || enemyRef.current <= 0) return;
+      const signedDistance =
+        facingRef.current === "right"
+          ? enemyXRef.current - xRef.current
+          : xRef.current - enemyXRef.current;
+      if (signedDistance < -1.5 || signedDistance > range) return;
+
+      const next = Math.max(0, enemyRef.current - damage);
+      enemyRef.current = next;
+      setEnemyHp(next);
+      setEnemyHit(true);
+      later(() => setEnemyHit(false), 260);
+      if (next === 0) finishGame("victory", 620);
+    }, HEAVY_RELEASE_HIT_MS);
+
+    later(() => {
+      if (token !== attackToken.current) return;
+      attackRef.current = false;
+      attackUntilRef.current = 0;
+      currentAttackStep.current = 0;
+      heavyAttackPhaseRef.current = "idle";
+      heavyChargeStartedAtRef.current = 0;
+      heavyChargeRatioRef.current = 0;
+      releaseHeavyAttackRef.current = null;
+      setAttackStep(0);
+      setHeavyAttackPhase("idle");
+      setHeavyChargeRatio(0);
+      setHeavyImpact(false);
+    }, HEAVY_RELEASE_DURATION_MS);
+  }, [finishGame, later]);
+
+  const beginHeavyAttack = useCallback(() => {
+    recoverExpiredControlLocks();
+    const grounded =
+      chapterRef.current === "gate"
+        ? gateGroundedRef.current
+        : yRef.current <= 1;
+    if (
+      phaseRef.current !== "playing" ||
+      !grounded ||
+      rollingRef.current ||
+      landingRef.current ||
+      attackPendingRef.current ||
+      attackRef.current ||
+      spiritRef.current < HEAVY_SPIRIT_COST
+    )
+      return;
+
+    const now = performance.now();
+    attackToken.current += 1;
+    attackRef.current = true;
+    attackUntilRef.current =
+      now + HEAVY_AUTO_RELEASE_MS + HEAVY_RELEASE_DURATION_MS + 600;
+    currentAttackStep.current = 3;
+    heavyAttackPhaseRef.current = "charging";
+    heavyChargeStartedAtRef.current = now;
+    heavyChargeRatioRef.current = 0;
+    releaseHeavyAttackRef.current = releaseHeavyAttack;
+    movingRef.current = false;
+    locomotionToken.current += 1;
+    setLocomotion("idle");
+    setAttackStep(3);
+    setHeavyAttackPhase("charging");
+    setHeavyChargeRatio(0);
+    spendSpirit(HEAVY_SPIRIT_COST);
+  }, [recoverExpiredControlLocks, releaseHeavyAttack, spendSpirit]);
+
   useEffect(() => {
     const down = (event: KeyboardEvent) => {
       const key = event.key.toLowerCase();
@@ -1104,6 +1242,7 @@ export default function Home() {
           "w",
           " ",
           "j",
+          "l",
           "k",
           "shift",
           "arrowleft",
@@ -1116,6 +1255,7 @@ export default function Home() {
       keys.current.add(key);
       if ([" ", "w", "arrowup"].includes(key) && !event.repeat) jump();
       if (key === "j" && !event.repeat) attack();
+      if (key === "l" && !event.repeat) beginHeavyAttack();
       if (["k", "shift"].includes(key) && !event.repeat) roll();
       if (key === "enter" && ["intro", "victory", "defeat"].includes(phaseRef.current)) start();
       if (key === "escape" && phaseRef.current === "intro") returnToChapters();
@@ -1124,9 +1264,15 @@ export default function Home() {
         else void document.documentElement.requestFullscreen();
       }
     };
-    const up = (event: KeyboardEvent) =>
-      keys.current.delete(event.key.toLowerCase());
-    const blur = () => keys.current.clear();
+    const up = (event: KeyboardEvent) => {
+      const key = event.key.toLowerCase();
+      keys.current.delete(key);
+      if (key === "l") releaseHeavyAttack();
+    };
+    const blur = () => {
+      keys.current.clear();
+      releaseHeavyAttackRef.current?.();
+    };
     window.addEventListener("keydown", down);
     window.addEventListener("keyup", up);
     window.addEventListener("blur", blur);
@@ -1135,7 +1281,7 @@ export default function Home() {
       window.removeEventListener("keyup", up);
       window.removeEventListener("blur", blur);
     };
-  }, [attack, jump, returnToChapters, roll, start]);
+  }, [attack, beginHeavyAttack, jump, releaseHeavyAttack, returnToChapters, roll, start]);
 
   useEffect(() => {
     let frame = 0;
@@ -1145,6 +1291,16 @@ export default function Home() {
       before = now;
       if (phaseRef.current === "playing") {
         recoverExpiredControlLocks(now);
+        if (heavyAttackPhaseRef.current === "charging") {
+          const heldMs = now - heavyChargeStartedAtRef.current;
+          const chargeRatio = clamp(heldMs / HEAVY_FULL_CHARGE_MS, 0, 1);
+          if (Math.abs(chargeRatio - heavyChargeRatioRef.current) >= 0.015) {
+            heavyChargeRatioRef.current = chargeRatio;
+            setHeavyChargeRatio(chargeRatio);
+          }
+          if (heldMs >= HEAVY_AUTO_RELEASE_MS)
+            releaseHeavyAttackRef.current?.();
+        }
         if (jumpBufferUntilRef.current > 0) {
           if (now >= jumpBufferUntilRef.current || tryJump(now))
             jumpBufferUntilRef.current = 0;
@@ -1494,6 +1650,22 @@ export default function Home() {
           rolling: rollingRef.current,
           attacking: attackRef.current,
           attackPending: attackPendingRef.current,
+          heavyAttack: {
+            phase: heavyAttackPhase,
+            chargePercent: Math.round(heavyChargeRatio * 100),
+            damage: Math.round(
+              HEAVY_MIN_DAMAGE +
+                (HEAVY_MAX_DAMAGE - HEAVY_MIN_DAMAGE) *
+                  heavyChargeRatio,
+            ),
+            forwardRange: Number(
+              (
+                HEAVY_MIN_RANGE +
+                (HEAVY_MAX_RANGE - HEAVY_MIN_RANGE) *
+                  heavyChargeRatio
+              ).toFixed(1),
+            ),
+          },
           automaticRecoveries: controlRecoveryCountRef.current,
           heldKeys: [...keys.current],
           focusedControl:
@@ -1501,7 +1673,7 @@ export default function Home() {
               ? document.activeElement.className || document.activeElement.tagName
               : null,
         },
-        controls: "A/D移动，空格跳跃，K或Shift翻滚，J连斩，F全屏",
+        controls: "A/D移动，空格跳跃，K或Shift翻滚，J连斩，按住L蓄力重击，F全屏",
       });
     };
     window.advanceTime = (ms: number) => {
@@ -1550,7 +1722,7 @@ export default function Home() {
       delete window.advanceTime;
       delete window.set_gate_pose;
     };
-  }, [airState, locomotion, stepGatePhysics]);
+  }, [airState, heavyAttackPhase, heavyChargeRatio, locomotion, stepGatePhysics]);
 
   const hold = (key: string, pressed: boolean) => {
     if (pressed) keys.current.add(key);
@@ -1560,7 +1732,7 @@ export default function Home() {
   const actionClass = rolling
     ? "rolling"
     : attackStep
-      ? `attacking combo-${attackStep}`
+      ? `attacking combo-${attackStep}${attackStep === 3 ? ` heavy-${heavyAttackPhase}` : ""}${heavyChargeRatio >= 0.99 ? " heavy-full" : ""}`
       : airState === "rising"
         ? "jumping"
         : airState === "falling"
@@ -1571,7 +1743,9 @@ export default function Home() {
     ? "翻滚"
     : attackStep
       ? attackStep === 3
-        ? "破墨重斩"
+        ? heavyAttackPhase === "charging"
+          ? `蓄势 ${Math.round(heavyChargeRatio * 100)}%`
+          : "破墨重斩"
         : spirit <= 0
           ? "轻击"
           : `剑式 ${attackStep}`
@@ -1612,8 +1786,13 @@ export default function Home() {
           left: `${gatePlayerLeft}px`,
           ["--air-y"]: "0px",
           ["--ground-bottom"]: `${gateGroundBottom}px`,
+          ["--heavy-charge"]: `${Math.round(heavyChargeRatio * 100)}%`,
         } as CSSProperties)
-      : ({ left: `${x}%`, ["--air-y"]: `${y}px` } as CSSProperties);
+      : ({
+          left: `${x}%`,
+          ["--air-y"]: `${y}px`,
+          ["--heavy-charge"]: `${Math.round(heavyChargeRatio * 100)}%`,
+        } as CSSProperties);
   const tierEnemies = DEMO_ENEMIES_BY_TIER[selectedTier];
   const enemyHealthPercent =
     selectedEnemy.hp > 0 ? (enemyHp / selectedEnemy.hp) * 100 : 0;
@@ -1743,7 +1922,7 @@ export default function Home() {
 
         <div
           ref={stageRef}
-          className={`stage ${chapter === "gate" ? "gate-stage" : "tutorial-stage"}`}
+          className={`stage ${chapter === "gate" ? "gate-stage" : "tutorial-stage"} ${heavyImpact ? "heavy-impacting" : ""}`}
         >
           {chapter === "gate" && (
             <div
@@ -1790,10 +1969,13 @@ export default function Home() {
               <span className="roll-sprite" aria-hidden="true" />
               <span className="slash primary" />
               <span className="slash echo" />
+              <span className="heavy-aura" aria-hidden="true" />
+              <span className="heavy-shockwave" aria-hidden="true" />
             </div>
             <span className="roll-echo one" />
             <span className="roll-echo two" />
             <span className="landing-ink" />
+            <span className="heavy-charge-meter" aria-hidden="true"><i /></span>
             <b className="action-label">{actionLabel}</b>
           </div>
           {chapter === "tutorial" && (
@@ -1919,6 +2101,9 @@ export default function Home() {
                 </span>
                 <span>
                   <kbd>J</kbd> 连斩
+                </span>
+                <span>
+                  <kbd>L</kbd> 蓄力重击
                 </span>
                 <span>
                   <kbd>F</kbd> 全屏
@@ -2085,6 +2270,9 @@ export default function Home() {
             <span>
               <kbd>J</kbd> 二段连斩
             </span>
+            <span>
+              <kbd>L</kbd> 蓄力重击
+            </span>
           </div>
           <p>
             {chapter === "gate"
@@ -2137,6 +2325,17 @@ export default function Home() {
             </button>
             <button type="button" className="attack-touch" onClick={attack} disabled={phase !== "playing"}>
               斩
+            </button>
+            <button
+              type="button"
+              className="heavy-touch"
+              disabled={phase !== "playing" || spirit < HEAVY_SPIRIT_COST}
+              onPointerDown={beginHeavyAttack}
+              onPointerUp={releaseHeavyAttack}
+              onPointerCancel={releaseHeavyAttack}
+              onPointerLeave={releaseHeavyAttack}
+            >
+              重
             </button>
           </div>
         </footer>

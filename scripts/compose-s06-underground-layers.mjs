@@ -2,8 +2,9 @@ import path from "node:path";
 import sharp from "sharp";
 
 const root = process.cwd();
-const assetRoot = path.join(root, "public/assets/maps/gate");
-const sceneDir = path.join(assetRoot, "s06-underground");
+const assetRoot = path.join(root, "local-art-source/runtime-originals/assets/maps/gate");
+const artRoot = path.join(root, "local-art-source/editable/maps/gate");
+const sceneDir = path.join(artRoot, "s06-underground");
 const sourceDir = path.join(sceneDir, "source");
 const layersDir = path.join(sceneDir, "layers");
 const width = 1672;
@@ -30,7 +31,7 @@ const makeFadeStrip = async (input, stripWidth, direction = "out") => {
 };
 
 const seamFromS05 = async (layer, stripWidth) => {
-  const strip = await sharp(path.join(assetRoot, `s05-underground/layers/${layer}`))
+  const strip = await sharp(path.join(artRoot, `s05-underground/layers/${layer}`))
     .extract({ left: width - stripWidth, top: 0, width: stripWidth, height })
     .flop()
     .png()
@@ -42,7 +43,7 @@ const weldFirstColumn = async (input, previousLayer) => {
   const clear = await sharp({
     create: { width: 1, height, channels: 4, background: { r: 255, g: 255, b: 255, alpha: 1 } },
   }).png().toBuffer();
-  const previousEdge = await sharp(path.join(assetRoot, `s05-underground/layers/${previousLayer}`))
+  const previousEdge = await sharp(path.join(artRoot, `s05-underground/layers/${previousLayer}`))
     .ensureAlpha()
     .extract({ left: width - 1, top: 0, width: 1, height })
     .png()
@@ -137,7 +138,7 @@ const effectsBlended = await sharp(effectsBase).composite([{
 const effects = await weldFirstColumn(effectsBlended, "40-effects.png");
 await sharp(effects).toFile(path.join(layersDir, "40-effects.png"));
 
-const floorTexture = await sharp(path.join(assetRoot, "s05-underground/layers/50-foundation.png"))
+const floorTexture = await sharp(path.join(artRoot, "s05-underground/layers/50-foundation.png"))
   .extract({ left: 900, top: 780, width: 360, height: 161 })
   .resize(width, 161, { fit: "fill", kernel: sharp.kernel.lanczos3 })
   .png()

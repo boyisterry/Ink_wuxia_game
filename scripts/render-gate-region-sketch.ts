@@ -5,16 +5,17 @@ import { ADDITIONAL_GATE_CONSTRUCTION, GATE_SHRINE_PLACEMENTS, type Construction
 import { GATE_SCREENS } from "../app/map/gate/screens.ts";
 
 const root = process.cwd();
-const outputDir = path.join(root, "public/assets/maps/gate/region-sketch");
-const layersDir = path.join(outputDir, "layers");
+const outputDir = path.join(root, "local-art-source/runtime-originals/assets/maps/gate/region-sketch");
+const artOutputDir = path.join(root, "local-art-source/editable/maps/gate/region-sketch");
+const layersDir = path.join(artOutputDir, "layers");
 const screensDir = path.join(outputDir, "screens");
 const undergroundDir = path.join(outputDir, "underground");
-const undergroundLayersDir = path.join(undergroundDir, "layers");
+const undergroundLayersDir = path.join(artOutputDir, "underground/layers");
 const undergroundScreensDir = path.join(undergroundDir, "screens");
 const W = 1672;
 const H = 941;
 const TOTAL_W = W * 12;
-const sharedShrinePath = path.join(root, "public/assets/maps/gate/shared/save-shrine-v1.png");
+const sharedShrinePath = path.join(root, "local-art-source/runtime-originals/assets/maps/gate/shared/save-shrine-v1.png");
 await Promise.all([layersDir, screensDir, undergroundLayersDir, undergroundScreensDir].map((directory) => mkdir(directory, { recursive: true })));
 
 type SketchScreen = { screen: number; colliders: readonly ConstructionColliderSpec[]; buildings: readonly ConstructionBuildingSpec[] };

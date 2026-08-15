@@ -155,8 +155,8 @@ const HEAVY_AUTO_RELEASE_MS = 1500;
 const HEAVY_RELEASE_HIT_MS = 420;
 const HEAVY_RELEASE_DURATION_MS = 900;
 const ACTION_ASSET_URLS = [
-  "/assets/player.png",
-  "/assets/player-idle.png",
+  "/assets/player.webp",
+  "/assets/player-idle.webp",
   "/assets/player-run-start.webp",
   "/assets/player-run-loop.webp",
   "/assets/player-run-stop.webp",
@@ -172,6 +172,8 @@ const ACTION_ASSET_URLS = [
   "/assets/player-run-jump-land.webp",
   "/assets/player-dash-roll.webp",
 ] as const;
+const CORE_ACTION_ASSET_URLS = ACTION_ASSET_URLS.slice(0, 5);
+const DEFERRED_ACTION_ASSET_URLS = ACTION_ASSET_URLS.slice(5);
 
 const GATE_SOURCE = { width: 1672, height: 941, screens: 12 } as const;
 const GATE_WORLD_WIDTH = GATE_SOURCE.width * GATE_SOURCE.screens;
@@ -193,7 +195,7 @@ const LANDING_LOCK_MS = 200;
 const GATE_ART_VERSION = "gate-art-full-12-20260808";
 const GATE_ART_URLS = GATE_SCREENS.map(
   (screen) =>
-    `/assets/maps/gate/${screen.id}-ink-background-layered-1672.png?v=${GATE_ART_VERSION}`,
+    `/assets/maps/gate/${screen.id}-ink-background-layered-1672.webp?v=${GATE_ART_VERSION}`,
 );
 
 type RuntimeGround = {
@@ -482,7 +484,7 @@ export default function Home() {
   useEffect(() => {
     let cancelled = false;
 
-    const preload = (src: string) =>
+    const preload = (src: string, trackProgress: boolean) =>
       new Promise<void>((resolve, reject) => {
         const image = new Image();
         image.decoding = "async";
@@ -493,16 +495,23 @@ export default function Home() {
             // Some Safari versions reject decode() after load even though the
             // decoded image is already usable, so load remains authoritative.
           }
-          if (!cancelled) setLoadedActionAssets((count) => count + 1);
+          if (!cancelled && trackProgress) {
+            setLoadedActionAssets((count) => count + 1);
+          }
           resolve();
         };
         image.onerror = () => reject(new Error(`Failed to preload ${src}`));
         image.src = src;
       });
 
-    void Promise.all(ACTION_ASSET_URLS.map(preload))
+    void Promise.all(CORE_ACTION_ASSET_URLS.map((src) => preload(src, true)))
       .then(() => {
-        if (!cancelled) setActionAssetsReady(true);
+        if (!cancelled) {
+          setActionAssetsReady(true);
+          void Promise.allSettled(
+            DEFERRED_ACTION_ASSET_URLS.map((src) => preload(src, false)),
+          );
+        }
       })
       .catch(() => {
         if (!cancelled) setActionAssetsFailed(true);
@@ -1867,7 +1876,7 @@ export default function Home() {
           </div>
           <div className="vitals">
             <div className={`portrait ${playerHit ? "hit" : ""}`}>
-              <img src="/assets/player.png" alt="水墨剑客头像" />
+              <img src="/assets/player.webp" alt="水墨剑客头像" />
             </div>
             <div className="bars">
               <div className="bar health-bar">
@@ -1934,13 +1943,21 @@ export default function Home() {
               }}
             >
               {GATE_ART_URLS.map((src, index) => (
-                <img
+                <div
+                  className="gate-screen"
                   key={src}
-                  src={src}
-                  alt={`S${String(index + 1).padStart(2, "0")} ${GATE_SCREENS[index].name}`}
-                  draggable={false}
                   style={{ width: `${GATE_SOURCE.width * gateScale}px` }}
-                />
+                >
+                  {Math.abs(index - gateScreenIndex) <= 2 && (
+                    <img
+                      src={src}
+                      alt={`S${String(index + 1).padStart(2, "0")} ${GATE_SCREENS[index].name}`}
+                      decoding="async"
+                      fetchPriority={index === gateScreenIndex ? "high" : "low"}
+                      draggable={false}
+                    />
+                  )}
+                </div>
               ))}
             </div>
           )}
@@ -1959,7 +1976,7 @@ export default function Home() {
           >
             <div className="actor-visual">
               <img
-                src="/assets/player-idle.png"
+                src="/assets/player-idle.webp"
                 alt="持剑的墨境行者"
                 draggable={false}
               />
@@ -2084,7 +2101,7 @@ export default function Home() {
                     ? "动作素材载入失败"
                     : actionAssetsReady
                       ? "踏入山门"
-                      : `研墨中 ${loadedActionAssets}/${ACTION_ASSET_URLS.length}`}
+                      : `研墨中 ${loadedActionAssets}/${CORE_ACTION_ASSET_URLS.length}`}
                 </span>
                 <small>{actionAssetsReady ? "ENTER" : "LOADING"}</small>
               </button>
@@ -2209,7 +2226,7 @@ export default function Home() {
                         ? "动作素材载入失败"
                         : actionAssetsReady
                           ? `挑战 ${selectedEnemy.name}`
-                          : `研墨中 ${loadedActionAssets}/${ACTION_ASSET_URLS.length}`}
+                          : `研墨中 ${loadedActionAssets}/${CORE_ACTION_ASSET_URLS.length}`}
                     </span>
                     <small>{actionAssetsReady ? "ENTER" : "LOADING"}</small>
                   </button>

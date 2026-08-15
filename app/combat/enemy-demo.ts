@@ -119,7 +119,7 @@ const effectPath = (enemyId: DemoEnemyId, attackId?: string) => {
   // Keep the optional attack id in the call contract so validation can pair an
   // attack with its asset while all attacks reuse the enemy-level VFX master.
   void attackId;
-  return `/assets/enemies/effects/combat/${enemyId}.png`;
+  return `/assets/enemies/effects/combat/${enemyId}.webp`;
 };
 
 export const DEMO_ENEMY_ORDER = [
@@ -158,7 +158,7 @@ export const DEMO_ENEMIES = {
     spawnX: 72,
     renderScale: 1,
     footOffset: 6.6,
-    spritePath: "/assets/enemies/sprites/idle/bamboo_blade.png",
+    spritePath: "/assets/enemies/sprites/idle/bamboo_blade.webp",
     behavior: {
       mode: "chase",
       preferredRange: [5, 10],
@@ -173,7 +173,7 @@ export const DEMO_ENEMIES = {
         name: "竹影横斩",
         kind: "light",
         frequency: "common",
-        weight: 100,
+        weight: 75,
         timing: { windupMs: 300, activeMs: 120, followThroughMs: 120, recoveryMs: 520, hitAtMs: 60 },
         damage: 28,
         range: { minX: 0, maxX: 11, vertical: "ground" },
@@ -182,6 +182,22 @@ export const DEMO_ENEMIES = {
         telegraph: "刀客压低斗笠，刀鞘边缘闪出一线冷白。",
         counterplay: "后撤离开短刀范围，或向刀客身后翻滚；收刀时反击。",
         effectPath: effectPath("bamboo_blade", "bamboo_sweep"),
+        effectOrigin: "weapon",
+      },
+      {
+        id: "scarlet_cleaver",
+        name: "赤刃下劈",
+        kind: "heavy",
+        frequency: "rare",
+        weight: 25,
+        timing: { windupMs: 900, activeMs: 180, followThroughMs: 180, recoveryMs: 900, hitAtMs: 90 },
+        damage: 48,
+        range: { minX: 0, maxX: 14, vertical: "ground" },
+        cooldownMs: 2900,
+        motion: { kind: "lunge", distanceX: 4.5, speedX: 14 },
+        telegraph: "刀客双手举刀停顿，刀背朱红由刀镡一路亮至刀尖，脚前出现短红线。",
+        counterplay: "红线定向后向其身后翻滚；重劈嵌地后的拔刀动作是长反击窗。",
+        effectPath: effectPath("bamboo_blade", "scarlet_cleaver"),
         effectOrigin: "weapon",
       },
     ],
@@ -194,7 +210,7 @@ export const DEMO_ENEMIES = {
     spawnX: 75,
     renderScale: 1.12,
     footOffset: 11.3,
-    spritePath: "/assets/enemies/sprites/idle/rooftop_bow.png",
+    spritePath: "/assets/enemies/sprites/idle/rooftop_bow.webp",
     behavior: {
       mode: "kite",
       preferredRange: [22, 36],
@@ -209,7 +225,7 @@ export const DEMO_ENEMIES = {
         name: "朱线穿弩",
         kind: "light",
         frequency: "common",
-        weight: 100,
+        weight: 75,
         timing: { windupMs: 650, activeMs: 650, followThroughMs: 100, recoveryMs: 850, hitAtMs: 325 },
         damage: 30,
         range: { minX: 14, maxX: 70, vertical: "any" },
@@ -218,6 +234,22 @@ export const DEMO_ENEMIES = {
         telegraph: "弩机前伸，朱红瞄准线从箭槽落到玩家身上。",
         counterplay: "在线条锁定后跳跃或翻滚穿过；近身也可打断上弦。",
         effectPath: effectPath("rooftop_bow", "scarlet_bolt"),
+        effectOrigin: "weapon",
+      },
+      {
+        id: "timberpiercer_bolt",
+        name: "贯梁重矢",
+        kind: "heavy",
+        frequency: "rare",
+        weight: 25,
+        timing: { windupMs: 1100, activeMs: 900, followThroughMs: 160, recoveryMs: 1200, hitAtMs: 450 },
+        damage: 50,
+        range: { minX: 18, maxX: 78, vertical: "any" },
+        cooldownMs: 3800,
+        motion: { kind: "projectile", distanceX: 78, speedX: 48 },
+        telegraph: "弩手踩住弩臂绞紧弦索，粗朱红射线贯穿整条路径并在发射前锁定。",
+        counterplay: "射线锁定后跳离路径或翻滚穿矢；长装填期间可直接近身压制。",
+        effectPath: effectPath("rooftop_bow", "timberpiercer_bolt"),
         effectOrigin: "weapon",
       },
     ],
@@ -230,7 +262,7 @@ export const DEMO_ENEMIES = {
     spawnX: 70,
     renderScale: 0.78,
     footOffset: 5.6,
-    spritePath: "/assets/enemies/sprites/idle/ink_crow.png",
+    spritePath: "/assets/enemies/sprites/idle/ink_crow.webp",
     behavior: {
       mode: "hover",
       preferredRange: [10, 23],
@@ -245,7 +277,7 @@ export const DEMO_ENEMIES = {
         name: "折羽俯啄",
         kind: "light",
         frequency: "common",
-        weight: 100,
+        weight: 75,
         timing: { windupMs: 400, activeMs: 320, followThroughMs: 200, recoveryMs: 750, hitAtMs: 160 },
         damage: 24,
         range: { minX: 4, maxX: 25, vertical: "any" },
@@ -255,6 +287,22 @@ export const DEMO_ENEMIES = {
         counterplay: "在俯冲方向锁定后横移或翻滚，让墨鸦撞地失衡。",
         effectPath: effectPath("ink_crow", "folded_wing_dive"),
         effectOrigin: "head",
+      },
+      {
+        id: "inkfeather_barrage",
+        name: "墨羽暴雨",
+        kind: "heavy",
+        frequency: "rare",
+        weight: 25,
+        timing: { windupMs: 900, activeMs: 720, followThroughMs: 220, recoveryMs: 950, hitAtMs: 360 },
+        damage: 46,
+        range: { minX: 6, maxX: 38, vertical: "any" },
+        cooldownMs: 3200,
+        motion: { kind: "projectile", distanceX: 34, speedX: 28 },
+        telegraph: "墨鸦悬停张满双翼，羽尖逐排染红，玩家一侧出现扇形落羽预警。",
+        counterplay: "预警扇面固定后冲向墨鸦下方或翻滚出边缘；散射结束后可跳斩打落。",
+        effectPath: effectPath("ink_crow", "inkfeather_barrage"),
+        effectOrigin: "body",
       },
     ],
   },
@@ -266,7 +314,7 @@ export const DEMO_ENEMIES = {
     spawnX: 70,
     renderScale: 1.14,
     footOffset: 11.1,
-    spritePath: "/assets/enemies/sprites/idle/ink_spider.png",
+    spritePath: "/assets/enemies/sprites/idle/ink_spider.webp",
     behavior: {
       mode: "ambush",
       preferredRange: [4, 14],
@@ -281,7 +329,7 @@ export const DEMO_ENEMIES = {
         name: "垂丝坠袭",
         kind: "light",
         frequency: "common",
-        weight: 100,
+        weight: 75,
         timing: { windupMs: 550, activeMs: 220, followThroughMs: 180, recoveryMs: 800, hitAtMs: 110 },
         damage: 26,
         range: { minX: 0, maxX: 13, vertical: "ground" },
@@ -291,6 +339,22 @@ export const DEMO_ENEMIES = {
         counterplay: "看见落点后持续横移；坠地扑空时攻击翻出的腹部。",
         effectPath: effectPath("ink_spider", "silk_drop"),
         effectOrigin: "target-air",
+      },
+      {
+        id: "venom_ink_web",
+        name: "毒墨覆网",
+        kind: "heavy",
+        frequency: "rare",
+        weight: 25,
+        timing: { windupMs: 1000, activeMs: 520, followThroughMs: 180, recoveryMs: 1050, hitAtMs: 260 },
+        damage: 48,
+        range: { minX: 3, maxX: 34, vertical: "ground" },
+        cooldownMs: 3500,
+        motion: { kind: "ground-target", distanceX: 0, speedX: 0 },
+        telegraph: "蛛腹高高鼓起并透出朱红纹路，目标地面铺开一圈紫黑蛛网边界。",
+        counterplay: "蛛网边界闭合前跳离锁定区；喷吐后的翻腹硬直可造成高额反击。",
+        effectPath: effectPath("ink_spider", "venom_ink_web"),
+        effectOrigin: "ground-target",
       },
     ],
   },
@@ -302,7 +366,7 @@ export const DEMO_ENEMIES = {
     spawnX: 72,
     renderScale: 1.08,
     footOffset: 4.5,
-    spritePath: "/assets/enemies/sprites/idle/iron_shield.png",
+    spritePath: "/assets/enemies/sprites/idle/iron_shield.webp",
     behavior: {
       mode: "chase",
       preferredRange: [5, 12],
@@ -317,7 +381,7 @@ export const DEMO_ENEMIES = {
         name: "铁壁冲城",
         kind: "light",
         frequency: "common",
-        weight: 100,
+        weight: 75,
         timing: { windupMs: 550, activeMs: 650, followThroughMs: 180, recoveryMs: 1000, hitAtMs: 325 },
         damage: 36,
         range: { minX: 3, maxX: 24, vertical: "ground" },
@@ -326,6 +390,22 @@ export const DEMO_ENEMIES = {
         telegraph: "盾卫沉肩压盾，盾面朱痕由下向上亮起。",
         counterplay: "跳过或贴身翻滚绕后；冲撞落空后的扶盾动作是输出窗。",
         effectPath: effectPath("iron_shield", "ironwall_charge"),
+        effectOrigin: "body",
+      },
+      {
+        id: "mountainbreaker_slam",
+        name: "镇岳盾砸",
+        kind: "heavy",
+        frequency: "rare",
+        weight: 25,
+        timing: { windupMs: 1100, activeMs: 260, followThroughMs: 220, recoveryMs: 1250, hitAtMs: 130 },
+        damage: 58,
+        range: { minX: 0, maxX: 16, vertical: "ground" },
+        cooldownMs: 3900,
+        motion: { kind: "stationary", distanceX: 0, speedX: 0 },
+        telegraph: "盾卫将巨盾举过头顶，盾面朱痕全部点亮，脚前地面浮出扇形裂纹。",
+        counterplay: "离开裂纹或在盾落下时翻滚穿身；巨盾陷地后从背面重击。",
+        effectPath: effectPath("iron_shield", "mountainbreaker_slam"),
         effectOrigin: "body",
       },
     ],
@@ -338,7 +418,7 @@ export const DEMO_ENEMIES = {
     spawnX: 75,
     renderScale: 1,
     footOffset: 1.7,
-    spritePath: "/assets/enemies/sprites/idle/lantern_mage.png",
+    spritePath: "/assets/enemies/sprites/idle/lantern_mage.webp",
     behavior: {
       mode: "kite",
       preferredRange: [18, 32],
@@ -353,7 +433,7 @@ export const DEMO_ENEMIES = {
         name: "迟燃灯符",
         kind: "light",
         frequency: "common",
-        weight: 100,
+        weight: 75,
         timing: { windupMs: 700, activeMs: 250, followThroughMs: 150, recoveryMs: 850, hitAtMs: 125 },
         damage: 32,
         range: { minX: 7, maxX: 62, vertical: "ground" },
@@ -362,6 +442,22 @@ export const DEMO_ENEMIES = {
         telegraph: "灯芯收暗，玩家脚下浮出三圈由淡到浓的朱红符线。",
         counterplay: "符线闭合前离开落点；术士施法期间无法移动，可主动打断。",
         effectPath: effectPath("lantern_mage", "delayed_lantern_sigill"),
+        effectOrigin: "ground-target",
+      },
+      {
+        id: "lanternburst_domain",
+        name: "灯爆焚界",
+        kind: "heavy",
+        frequency: "rare",
+        weight: 25,
+        timing: { windupMs: 1050, activeMs: 680, followThroughMs: 220, recoveryMs: 1150, hitAtMs: 340 },
+        damage: 54,
+        range: { minX: 8, maxX: 48, vertical: "ground" },
+        cooldownMs: 3900,
+        motion: { kind: "ground-target", distanceX: 0, speedX: 0 },
+        telegraph: "术士双手托灯，灯芯转为朱红，玩家脚下展开两层反向旋转的焚烧符环。",
+        counterplay: "第二层符环开始闭合时离开目标区；灯火爆开后的熄灭阶段可打碎灯笼。",
+        effectPath: effectPath("lantern_mage", "lanternburst_domain"),
         effectOrigin: "ground-target",
       },
     ],
@@ -374,7 +470,7 @@ export const DEMO_ENEMIES = {
     spawnX: 70,
     renderScale: 1.18,
     footOffset: 0,
-    spritePath: "/assets/enemies/sprites/idle/ink_beast.png",
+    spritePath: "/assets/enemies/sprites/idle/ink_beast.webp",
     behavior: {
       mode: "chase",
       preferredRange: [5, 14],
@@ -389,7 +485,7 @@ export const DEMO_ENEMIES = {
         name: "裂墨扑咬",
         kind: "light",
         frequency: "common",
-        weight: 100,
+        weight: 75,
         timing: { windupMs: 380, activeMs: 320, followThroughMs: 200, recoveryMs: 750, hitAtMs: 160 },
         damage: 38,
         range: { minX: 2, maxX: 17, vertical: "ground" },
@@ -399,6 +495,22 @@ export const DEMO_ENEMIES = {
         counterplay: "朝其身后翻滚；扑空后的刹步会让其短暂失衡。",
         effectPath: effectPath("ink_beast", "rending_bite"),
         effectOrigin: "mouth",
+      },
+      {
+        id: "groundripper_charge",
+        name: "裂阵狂冲",
+        kind: "heavy",
+        frequency: "rare",
+        weight: 25,
+        timing: { windupMs: 900, activeMs: 620, followThroughMs: 240, recoveryMs: 1100, hitAtMs: 310 },
+        damage: 56,
+        range: { minX: 4, maxX: 32, vertical: "ground" },
+        cooldownMs: 3400,
+        motion: { kind: "dash", distanceX: 28, speedX: 40 },
+        telegraph: "噬墨兽贴地刨出三道朱红抓痕，背部墨雾收束成一条笔直冲锋路径。",
+        counterplay: "路径锁定后起跳或朝其身后翻滚；诱导撞到场地边缘可获得长眩晕。",
+        effectPath: effectPath("ink_beast", "groundripper_charge"),
+        effectOrigin: "body",
       },
     ],
   },
@@ -410,7 +522,7 @@ export const DEMO_ENEMIES = {
     spawnX: 74,
     renderScale: 1.02,
     footOffset: 2.9,
-    spritePath: "/assets/enemies/sprites/idle/chain_jailer.png",
+    spritePath: "/assets/enemies/sprites/idle/chain_jailer.webp",
     behavior: {
       mode: "hold",
       preferredRange: [13, 24],
@@ -425,7 +537,7 @@ export const DEMO_ENEMIES = {
         name: "赤钩拘魂",
         kind: "light",
         frequency: "common",
-        weight: 100,
+        weight: 75,
         timing: { windupMs: 520, activeMs: 300, followThroughMs: 350, recoveryMs: 950, hitAtMs: 150 },
         damage: 30,
         range: { minX: 9, maxX: 36, vertical: "any" },
@@ -434,6 +546,22 @@ export const DEMO_ENEMIES = {
         telegraph: "钩端由黑转红，狱卒后臂拉满，锁链绷成直线。",
         counterplay: "在钩端发红后跳过或劈开锁链；落空时贴身反击。",
         effectPath: effectPath("chain_jailer", "scarlet_hook"),
+        effectOrigin: "weapon",
+      },
+      {
+        id: "prisonchain_sweep",
+        name: "锁狱横扫",
+        kind: "heavy",
+        frequency: "rare",
+        weight: 25,
+        timing: { windupMs: 1000, activeMs: 600, followThroughMs: 240, recoveryMs: 1150, hitAtMs: 300 },
+        damage: 52,
+        range: { minX: 3, maxX: 34, vertical: "ground" },
+        cooldownMs: 3600,
+        motion: { kind: "stationary", distanceX: 0, speedX: 0 },
+        telegraph: "狱卒将长链绕身两周，钩尖和地面半圆路径同时泛出朱红。",
+        counterplay: "原地跳过低位链扫或贴身翻滚；锁链绕回身体时是最长收招窗口。",
+        effectPath: effectPath("chain_jailer", "prisonchain_sweep"),
         effectOrigin: "weapon",
       },
     ],
@@ -446,7 +574,7 @@ export const DEMO_ENEMIES = {
     spawnX: 70,
     renderScale: 1.32,
     footOffset: 17.8,
-    spritePath: "/assets/enemies/sprites/idle/ink_eel.png",
+    spritePath: "/assets/enemies/sprites/idle/ink_eel.webp",
     behavior: {
       mode: "orbit",
       preferredRange: [12, 25],
@@ -461,7 +589,7 @@ export const DEMO_ENEMIES = {
         name: "鳞光贯游",
         kind: "light",
         frequency: "common",
-        weight: 100,
+        weight: 75,
         timing: { windupMs: 420, activeMs: 450, followThroughMs: 200, recoveryMs: 800, hitAtMs: 225 },
         damage: 28,
         range: { minX: 5, maxX: 30, vertical: "any" },
@@ -471,6 +599,22 @@ export const DEMO_ENEMIES = {
         counterplay: "鳞光锁定后立即侧移或翻滚；其冲过头回旋时追击。",
         effectPath: effectPath("ink_eel", "scaleglint_dash"),
         effectOrigin: "head",
+      },
+      {
+        id: "inktail_undertow",
+        name: "尾墨回潮",
+        kind: "heavy",
+        frequency: "rare",
+        weight: 25,
+        timing: { windupMs: 950, activeMs: 700, followThroughMs: 220, recoveryMs: 1050, hitAtMs: 350 },
+        damage: 50,
+        range: { minX: 0, maxX: 36, vertical: "any" },
+        cooldownMs: 3500,
+        motion: { kind: "arena", distanceX: 0, speedX: 0 },
+        telegraph: "游魂盘成圆环，尾端朱鳞点亮，周围水纹向内收缩并标出回潮边界。",
+        counterplay: "回潮边界出现后向外拉开或用翻滚穿过波峰；盘身展开时追击头部。",
+        effectPath: effectPath("ink_eel", "inktail_undertow"),
+        effectOrigin: "arena-center",
       },
     ],
   },
@@ -482,7 +626,7 @@ export const DEMO_ENEMIES = {
     spawnX: 73,
     renderScale: 1.08,
     footOffset: 4.4,
-    spritePath: "/assets/enemies/sprites/idle/drowned_guard.png",
+    spritePath: "/assets/enemies/sprites/idle/drowned_guard.webp",
     behavior: {
       mode: "hold",
       preferredRange: [10, 20],
@@ -497,7 +641,7 @@ export const DEMO_ENEMIES = {
         name: "沉盾涌泉",
         kind: "light",
         frequency: "common",
-        weight: 100,
+        weight: 75,
         timing: { windupMs: 650, activeMs: 300, followThroughMs: 180, recoveryMs: 900, hitAtMs: 150 },
         damage: 34,
         range: { minX: 4, maxX: 52, vertical: "ground" },
@@ -507,6 +651,22 @@ export const DEMO_ENEMIES = {
         counterplay: "气泡聚拢前离开原位或起跳；水柱结束后攻击其背部。",
         effectPath: effectPath("drowned_guard", "sunken_shield_geyser"),
         effectOrigin: "ground-target",
+      },
+      {
+        id: "anchorchain_drag",
+        name: "锚链沉拖",
+        kind: "heavy",
+        frequency: "rare",
+        weight: 25,
+        timing: { windupMs: 1100, activeMs: 560, followThroughMs: 300, recoveryMs: 1250, hitAtMs: 280 },
+        damage: 58,
+        range: { minX: 10, maxX: 54, vertical: "any" },
+        cooldownMs: 4100,
+        motion: { kind: "pull", distanceX: 46, speedX: 34 },
+        telegraph: "水卒拔出背后锚链，锚尖转红，目标与锚尖之间浮现粗重水墨拉线。",
+        counterplay: "拉线锁定后跳起或劈开锚链；拖拽落空时绕后攻击暴露的气囊。",
+        effectPath: effectPath("drowned_guard", "anchorchain_drag"),
+        effectOrigin: "weapon",
       },
     ],
   },
@@ -518,7 +678,7 @@ export const DEMO_ENEMIES = {
     spawnX: 70,
     renderScale: 1,
     footOffset: 3.7,
-    spritePath: "/assets/enemy.png",
+    spritePath: "/assets/enemy.webp",
     behavior: {
       mode: "chase",
       preferredRange: [6, 16],
@@ -586,7 +746,7 @@ export const DEMO_ENEMIES = {
     spawnX: 74,
     renderScale: 1.08,
     footOffset: 3.8,
-    spritePath: "/assets/enemies/sprites/idle/lantern_adept.png",
+    spritePath: "/assets/enemies/sprites/idle/lantern_adept.webp",
     behavior: {
       mode: "teleport",
       preferredRange: [18, 32],
@@ -654,7 +814,7 @@ export const DEMO_ENEMIES = {
     spawnX: 71,
     renderScale: 1.15,
     footOffset: 3.8,
-    spritePath: "/assets/enemies/sprites/idle/scarlet_captain.png",
+    spritePath: "/assets/enemies/sprites/idle/scarlet_captain.webp",
     behavior: {
       mode: "chase",
       preferredRange: [9, 18],
@@ -722,7 +882,7 @@ export const DEMO_ENEMIES = {
     spawnX: 70,
     renderScale: 1.05,
     footOffset: 6.1,
-    spritePath: "/assets/enemies/sprites/idle/faceless_sword.png",
+    spritePath: "/assets/enemies/sprites/idle/faceless_sword.webp",
     behavior: {
       mode: "chase",
       preferredRange: [5, 13],
@@ -790,7 +950,7 @@ export const DEMO_ENEMIES = {
     spawnX: 72,
     renderScale: 1.12,
     footOffset: 4.9,
-    spritePath: "/assets/enemies/sprites/idle/lake_maiden.png",
+    spritePath: "/assets/enemies/sprites/idle/lake_maiden.webp",
     behavior: {
       mode: "teleport",
       preferredRange: [12, 25],
@@ -858,7 +1018,7 @@ export const DEMO_ENEMIES = {
     spawnX: 69,
     renderScale: 1.36,
     footOffset: 4.8,
-    spritePath: "/assets/enemies/sprites/idle/tomb_warden.png",
+    spritePath: "/assets/enemies/sprites/idle/tomb_warden.webp",
     behavior: {
       mode: "hold",
       preferredRange: [9, 22],
@@ -958,7 +1118,7 @@ export const DEMO_ENEMIES = {
     spawnX: 68,
     renderScale: 1.4,
     footOffset: 0,
-    spritePath: "/assets/enemies/sprites/idle/pine_nightmare.png",
+    spritePath: "/assets/enemies/sprites/idle/pine_nightmare.webp",
     behavior: {
       mode: "chase",
       preferredRange: [7, 19],
@@ -1058,7 +1218,7 @@ export const DEMO_ENEMIES = {
     spawnX: 70,
     renderScale: 1.25,
     footOffset: 4.7,
-    spritePath: "/assets/enemies/sprites/idle/formless_lord.png",
+    spritePath: "/assets/enemies/sprites/idle/formless_lord.webp",
     behavior: {
       mode: "teleport",
       preferredRange: [8, 22],
@@ -1223,7 +1383,7 @@ export function validateDemoEnemies(
       `${id} footOffset is outside the supported range`,
     );
     assertDemoData(
-      enemy.spritePath.startsWith("/assets/") && enemy.spritePath.endsWith(".png"),
+      enemy.spritePath.startsWith("/assets/") && enemy.spritePath.endsWith(".webp"),
       `${id} has an invalid spritePath`,
     );
     const [preferredMin, preferredMax] = enemy.behavior.preferredRange;
@@ -1248,7 +1408,7 @@ export function validateDemoEnemies(
     tierCounts[enemy.tier] += 1;
     attackTotal += enemy.attacks.length;
 
-    const expectedCount = enemy.tier === "normal" ? 1 : enemy.tier === "elite" ? 3 : 5;
+    const expectedCount = enemy.tier === "normal" ? 2 : enemy.tier === "elite" ? 3 : 5;
     assertDemoData(
       enemy.attacks.length === expectedCount,
       `${id} (${enemy.tier}) must have ${expectedCount} attacks`,
@@ -1256,7 +1416,7 @@ export function validateDemoEnemies(
 
     const expectedWeights =
       enemy.tier === "normal"
-        ? [100]
+        ? [75, 25]
         : enemy.tier === "elite"
           ? [42, 42, 16]
           : [25, 25, 14, 25, 11];
@@ -1288,8 +1448,8 @@ export function validateDemoEnemies(
 
     if (enemy.tier === "normal") {
       assertDemoData(
-        commonLightCount === 1 && secondaryLightCount === 0 && rareLightCount === 0 && commonHeavyCount === 0 && rareHeavyCount === 0,
-        `${id} normal composition must be one common light attack`,
+        commonLightCount === 1 && secondaryLightCount === 0 && rareLightCount === 0 && commonHeavyCount === 0 && rareHeavyCount === 1,
+        `${id} normal composition must be one common light attack and one rare heavy attack`,
       );
     } else if (enemy.tier === "elite") {
       assertDemoData(
@@ -1361,7 +1521,7 @@ export function validateDemoEnemies(
     enemies.bridge_nightmare.tier === "elite",
     "bridge_nightmare must be classified as elite",
   );
-  assertDemoData(attackTotal === 40, `expected 40 attacks, got ${attackTotal}`);
+  assertDemoData(attackTotal === 50, `expected 50 attacks, got ${attackTotal}`);
   assertDemoData(
     DEMO_ENEMIES_BY_TIER.normal.length === 10 &&
       DEMO_ENEMIES_BY_TIER.elite.length === 5 &&

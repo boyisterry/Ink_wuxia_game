@@ -1,133 +1,125 @@
 # 墨境行者 · 敌人画像与攻击动作
 
-画像目录：`public/assets/enemies/portraits/`  
+画像源文件目录：`local-art-source/editable/enemies/portraits/`
 视觉规范：宣纸底、灰黑浓墨主体、少量朱红或区域色作为预警与弱点；画像不包含文字和 UI。
 
 ## 基础敌人
 
 ### 1. 竹影刀客 `bamboo_blade`
 
-![竹影刀客](/assets/enemies/portraits/bamboo_blade.png)
+![竹影刀客](../local-art-source/editable/enemies/portraits/bamboo_blade.png)
 
 破旧短衫、斗笠与单刀构成最清楚的近战剪影，压低身体后快速贴近玩家。
 
-- 横向快斩：短距离快速横斩。
-- 蓄力下劈：刀身泛红后进行高伤下劈。
-- 后撤闪身：连续受击时拉开距离。
-- 两刀连击：横斩后接反手斩。
+- 普通攻击「竹影横斩」：短距离快速横斩；动作资源允许时可在同一次技能中表现为两刀连击。
+- 重击「赤刃下劈」：刀身泛红并标出脚前路径后进行高伤下劈。
+- 行动状态：连续受击时后撤闪身，不占攻击技能槽。
 - 反击窗口：完整攻击结束后的收刀硬直。
 
 ### 2. 屋脊弩手 `rooftop_bow`
 
-![屋脊弩手](/assets/enemies/portraits/rooftop_bow.png)
+![屋脊弩手](../local-art-source/editable/enemies/portraits/rooftop_bow.png)
 
 瘦长身形、破蓑衣与长弩，常蹲伏在屋脊或远端高台。
 
-- 单发弩箭：以细长红线预瞄后射击。
-- 三连速射：短间隔连续射出三箭。
-- 穿透重箭：长蓄力，可穿透部分木质掩体。
-- 后跳换位：玩家贴近后跳向后方平台。
+- 普通攻击「朱线穿弩」：以细长红线预瞄后射出单发弩箭。
+- 重击「贯梁重矢」：长蓄力后射出高伤重箭，并以粗红线标记贯穿路径。
+- 行动状态：玩家贴近时后跳换位，不占攻击技能槽。
 - 反击窗口：瞄准和装填期间；箭矢可劈落或翻滚穿过。
 
 ### 3. 墨羽鸦 `ink_crow`
 
-![墨羽鸦](/assets/enemies/portraits/ink_crow.png)
+![墨羽鸦](../local-art-source/editable/enemies/portraits/ink_crow.png)
 
 乌鸦、符纸和墨雾组成的飞行敌人，翅缘不断散落墨点。
 
-- 俯冲啄击：从斜上方高速俯冲。
-- 墨羽散射：向下扇射三至五片墨羽。
-- 群体盘旋：多只墨鸦轮流进攻。
-- 濒死墨爆：高阶个体死亡时留下小范围墨雾。
+- 普通攻击「折羽俯啄」：从斜上方高速俯冲。
+- 重击「墨羽暴雨」：蓄力后向下扇射密集墨羽。
+- 行动状态：盘旋、回升和坠地属于移动或受击状态，不占攻击技能槽。
 - 反击窗口：上挑、跳斩或远程攻击可使其坠地硬直。
 
 ### 4. 墨腹蛛 `ink_spider`
 
-![墨腹蛛](/assets/enemies/portraits/ink_spider.png)
+![墨腹蛛](../local-art-source/editable/enemies/portraits/ink_spider.png)
 
 湿墨腹部与白骨关节组成八足剪影，可在墙面和洞顶移动。
 
-- 墙顶突袭：潜伏洞顶，玩家经过时垂直落下。
-- 吐丝束缚：降低玩家移动与翻滚速度。
-- 毒墨喷射：在地面制造持续污染区。
-- 幼蛛孵化：大型个体死亡后可能释放两只幼蛛。
+- 普通攻击「垂丝坠袭」：潜伏洞顶，玩家经过时垂直落下。
+- 重击「毒墨覆网」：蓄力喷吐，在锁定地面铺开毒墨蛛网。
+- 行动状态：墙顶潜伏、爬墙和翻腹属于移动或受击状态，不占攻击技能槽。
 - 反击窗口：腹部暗红表示即将吐丝；翻身或跃下时攻击腹部造成额外伤害。
 
 ### 5. 铁甲盾卫 `iron_shield`
 
-![铁甲盾卫](/assets/enemies/portraits/iron_shield.png)
+![铁甲盾卫](../local-art-source/editable/enemies/portraits/iron_shield.png)
 
 高大重甲、巨型方盾与短刀，正面轮廓宽厚且压迫感强。
 
-- 盾牌格挡：抵挡大部分正面普通攻击。
-- 盾击：近身击退并造成短暂硬直。
-- 举盾冲撞：沿直线快速推进。
-- 反手斩：玩家绕后时突然回身攻击。
+- 普通攻击「铁壁冲城」：举盾沿直线推进并撞击玩家。
+- 重击「镇岳盾砸」：高举巨盾蓄力，砸地产生近距离扇形震裂。
+- 防御状态：正面举盾格挡，不占攻击技能槽。
 - 反击窗口：翻滚绕后、诱导冲撞撞墙或以重击破盾；盾破后攻速提高但防御大幅下降。
 
 ### 6. 提灯术士 `lantern_mage`
 
-![提灯术士](/assets/enemies/portraits/lantern_mage.png)
+![提灯术士](../local-art-source/editable/enemies/portraits/lantern_mage.png)
 
 宽大道袍、符纸覆面，旧灯笼是攻击来源也是可破坏弱点。
 
-- 地面符阵：玩家脚下出现红印，延迟爆发。
-- 墨火弹：缓慢追踪，可被攻击打散。
-- 召唤墨影：召出一至两个低生命影子。
-- 灯灭隐身：熄灯融入背景，再从其他位置出现。
+- 普通攻击「迟燃灯符」：玩家脚下出现单层红印，延迟爆发。
+- 重击「灯爆焚界」：双层符环锁定较大区域，灯芯蓄满后集中爆发。
+- 行动状态：漂退和灯灭换位不占攻击技能槽。
 - 反击窗口：施法时无法移动；击碎灯笼可中断法术并造成长失衡。
 
 ### 7. 噬墨兽 `ink_beast`
 
-![噬墨兽](/assets/enemies/portraits/ink_beast.png)
+![噬墨兽](../local-art-source/editable/enemies/portraits/ink_beast.png)
 
 狼獒混合体型，四足低伏，奔跑时身体向后拖出大片湿墨。
 
-- 连续扑咬：两次快扑后接撕咬。
-- 低姿冲锋：贴地高速冲过玩家位置。
-- 墨雾咆哮：遮挡视野并召集同类。
-- 残血狂暴：低生命时提升移动与攻击速度。
+- 普通攻击「裂墨扑咬」：快速跃扑并撕咬；动作资源允许时可表现为一次连续扑咬。
+- 重击「裂阵狂冲」：锁定直线路径后贴地高速冲过玩家位置。
+- 行动状态：残血狂暴只调整移速和出招节奏，不占攻击技能槽。
 - 反击窗口：扑空撞墙后会进入眩晕。
 
 ### 8. 链狱卒 `chain_jailer`
 
-![链狱卒](/assets/enemies/portraits/chain_jailer.png)
+![链狱卒](../local-art-source/editable/enemies/portraits/chain_jailer.png)
 
 异常瘦高的狱卒，拖着带钩长链，武器覆盖范围远大于身体。
 
-- 横扫锁链：大范围横扫，需要跳跃躲避。
-- 低位扫腿：贴地横扫，要求原地跳跃。
-- 锁钩抓取：把远处玩家拉到面前。
-- 悬空拦截：在竖井跳跃过程中从侧面甩链。
+- 普通攻击「赤钩拘魂」：把远处玩家拉到面前。
+- 重击「锁狱横扫」：蓄力后进行大范围低位横扫，需要跳跃躲避。
+- 行动状态：拖链撤步和随玩家保持距离不占攻击技能槽。
 - 反击窗口：钩端红光表示即将抓取；锁链完全伸直时可劈开并令其失衡。
 
 ### 9. 墨鳞游魂 `ink_eel`
 
-![墨鳞游魂](/assets/enemies/portraits/ink_eel.png)
+![墨鳞游魂](../local-art-source/editable/enemies/portraits/ink_eel.png)
 
 细长鱼骨与墨带组成的水栖游魂，主要活动在水体中层。
 
-- 环游盯防：绕玩家保持约半屏距离。
-- 鳞光突刺：鳞片闪蓝光后沿直线贯穿。
-- 尾墨残留：突刺路径留下短时减速墨带。
+- 普通攻击「鳞光贯游」：鳞片闪蓝光后沿直线贯穿。
+- 重击「尾墨回潮」：盘身蓄力并向周围释放环形墨潮。
+- 行动状态：环游盯防和边界回旋不占攻击技能槽。
 - 反击窗口：鳞光亮起后方向锁定；侧向避开，在其撞墙回旋时攻击。
 
 ### 10. 沉甲水卒 `drowned_guard`
 
-![沉甲水卒](/assets/enemies/portraits/drowned_guard.png)
+![沉甲水卒](../local-art-source/editable/enemies/portraits/drowned_guard.png)
 
 青苔、锁链与浸水重甲包裹的行宫卫兵，只能沿水底推进。
 
-- 沉盾推进：举盾沿池底持续逼近。
-- 水柱上冲：盾击水底，在玩家脚下引发水柱。
-- 锚链回收：把远离水底的玩家拉回中层。
+- 普通攻击「沉盾涌泉」：盾击水底，在玩家脚下引发水柱。
+- 重击「锚链沉拖」：长蓄力后甩出锚链，将远处玩家拉回。
+- 行动状态：举盾沿池底持续逼近，不占攻击技能槽。
 - 反击窗口：水柱前有气泡预警；锚链落空时背部气囊暴露。
 
 ## 精英敌人
 
 ### 11. 掌灯使 `lantern_adept`
 
-![掌灯使](/assets/enemies/portraits/lantern_adept.png)
+![掌灯使](../local-art-source/editable/enemies/portraits/lantern_adept.png)
 
 三层铜环主灯与悬浮符灯构成独特轮廓，是提灯术士的精英上位型。
 
@@ -139,7 +131,7 @@
 
 ### 12. 赤枪校尉 `scarlet_captain`
 
-![赤枪校尉](/assets/enemies/portraits/scarlet_captain.png)
+![赤枪校尉](../local-art-source/editable/enemies/portraits/scarlet_captain.png)
 
 黑甲武将，仅枪缨与腰带使用朱红，长枪决定其宽阔攻击范围。
 
@@ -151,7 +143,7 @@
 
 ### 13. 无面剑侍 `faceless_sword`
 
-![无面剑侍](/assets/enemies/portraits/faceless_sword.png)
+![无面剑侍](../local-art-source/editable/enemies/portraits/faceless_sword.png)
 
 黑衣、空白面孔与细长双刃剑，外形有意成为主角的镜像。
 
@@ -163,7 +155,7 @@
 
 ### 14. 湖中墨姬 `lake_maiden`
 
-![湖中墨姬](/assets/enemies/portraits/lake_maiden.png)
+![湖中墨姬](../local-art-source/editable/enemies/portraits/lake_maiden.png)
 
 长发女子上身与水墨下身相融，本体和水镜幻身通过红簪区分。
 
@@ -177,7 +169,7 @@
 
 ### 15. 剑冢狱主 `tomb_warden`
 
-![剑冢狱主](/assets/enemies/portraits/tomb_warden.png)
+![剑冢狱主](../local-art-source/editable/enemies/portraits/tomb_warden.png)
 
 废弃兵器、锁链与残甲拼成的巨型狱主，胸前朱红断剑封印是核心弱点。
 
@@ -188,7 +180,7 @@
 
 ### 16. 黑松魇兽 `pine_nightmare`
 
-![黑松魇兽](/assets/enemies/portraits/pine_nightmare.png)
+![黑松魇兽](../local-art-source/editable/enemies/portraits/pine_nightmare.png)
 
 鹿狼混合巨兽，枯树角和实体/墨雾双形态构成主要视觉特征。
 
@@ -198,7 +190,7 @@
 
 ### 17. 无相殿主 `formless_lord`
 
-![无相殿主](/assets/enemies/portraits/formless_lord.png)
+![无相殿主](../local-art-source/editable/enemies/portraits/formless_lord.png)
 
 白袍、宣纸空白面与成对长剑，随阶段推进由脚部向上遭黑墨侵蚀。
 
@@ -210,5 +202,5 @@
 ## 生成说明
 
 - 生成方式：Codex 内置 ImageGen。
-- 风格参考：项目原有 `public/assets/enemy.png`，仅用于统一浓墨、灰洗与朱红弱点语言。
+- 风格参考：项目运行图 `public/assets/enemy.webp`，仅用于统一浓墨、灰洗与朱红弱点语言。
 - 图片用途：当前为图鉴/概念画像；尚未拆分为透明角色立绘、骨骼部件或逐帧战斗动画。

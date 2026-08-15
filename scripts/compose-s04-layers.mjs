@@ -4,16 +4,17 @@ import { gradeCoolInkBackground } from "./ink-color-grade.mjs";
 import { buildMirroredFoundationTexture } from "./ink-foundation-texture.mjs";
 
 const root = process.cwd();
-const assetRoot = path.join(root, "public/assets/maps/gate");
-const s04Dir = path.join(assetRoot, "s04");
+const assetRoot = path.join(root, "local-art-source/runtime-originals/assets/maps/gate");
+const artRoot = path.join(root, "local-art-source/editable/maps/gate");
+const s04Dir = path.join(artRoot, "s04");
 const layersDir = path.join(s04Dir, "layers");
 const width = 1672;
 const height = 941;
 
 const files = {
   s03: path.join(assetRoot, "s03-ink-background-layered-1672.png"),
-  s03Background: path.join(assetRoot, "s03/layers/00-background-mountains.png"),
-  s03Foundation: path.join(assetRoot, "s03/layers/50-foundation.png"),
+  s03Background: path.join(artRoot, "s03/layers/00-background-mountains.png"),
+  s03Foundation: path.join(artRoot, "s03/layers/50-foundation.png"),
   backgroundSource: path.join(s04Dir, "source/00-background-generated.png"),
   architectureSource: path.join(s04Dir, "source/20-background-architecture-keyed.png"),
   decorationSource: path.join(s04Dir, "source/30-decoration-keyed.png"),

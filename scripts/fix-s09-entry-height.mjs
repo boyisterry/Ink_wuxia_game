@@ -3,8 +3,8 @@ import path from "node:path";
 import sharp from "sharp";
 
 const root = process.cwd();
-const assetRoot = path.join(root, "public/assets/maps/gate");
-const sourceDir = path.join(assetRoot, "s09/source");
+const assetRoot = path.join(root, "local-art-source/runtime-originals/assets/maps/gate");
+const sourceDir = path.join(root, "local-art-source/editable/maps/gate/s09/source");
 const source = path.join(sourceDir, "00-before-entry-height-fix.png");
 const output1672 = path.join(assetRoot, "s09-ink-background-layered-1672.png");
 const output4k = path.join(assetRoot, "s09-ink-background-layered-4k.png");

@@ -860,7 +860,7 @@ export default function GateScreenS01() {
                     <path className="far-mountains" d="M0 580L180 390L330 470L520 280L720 440L930 230L1160 390L1370 250L1672 420V760H0Z"/>
                     {(artPreview || layers.has("scene")) && <image
                       className="scene-art-layer"
-                      href="/assets/maps/gate/s01-ink-background-layered-4k.png?v=land-god-shrine-1"
+                      href="/assets/maps/gate/s01-ink-background-layered-4k.webp?v=webp-1"
                       x="0"
                       y="0"
                       width={SOURCE_STAGE.w}
@@ -885,7 +885,7 @@ export default function GateScreenS01() {
                     <path className="far-mountains" d="M0 420L140 360L280 430L460 260L640 400L820 220L1040 360L1260 240L1480 350L1672 420V760H0Z"/>
                     {(artPreview || layers.has("scene")) && <image
                       className="scene-art-layer"
-                      href="/assets/maps/gate/s02-ink-background-layered-seam-v2-4k.png"
+                      href="/assets/maps/gate/s02-ink-background-layered-4k.webp?v=webp-1"
                       x="0"
                       y="0"
                       width={SOURCE_STAGE.w}
@@ -928,7 +928,7 @@ export default function GateScreenS01() {
 
                   {(artPreview || layers.has("scene")) && <image
                     className="scene-art-layer seam-bamboo-layer route-surface"
-                    href="/assets/maps/gate/shared/s01-s02-seam-bamboo.png?v=1"
+                    href="/assets/maps/gate/shared/s01-s02-seam-bamboo.webp?v=webp-1"
                     clipPath="url(#seam-decoration-clip)"
                     x={STAGE.w - sx(622)}
                     y={sy(10)}
@@ -944,33 +944,33 @@ export default function GateScreenS01() {
                       className="scene-art-layer region-sketch-layer"
                       href={constructionPlane === "underground"
                         ? screen.id === "s04"
-                          ? "/assets/maps/gate/s04-underground-ink-layered-4k.png?v=land-god-shrine-1"
+                          ? "/assets/maps/gate/s04-underground-ink-layered-4k.webp?v=webp-1"
                           : screen.id === "s05"
-                            ? "/assets/maps/gate/s05-underground-ink-layered-4k.png?v=s05-underground-five-layer-2"
+                            ? "/assets/maps/gate/s05-underground-ink-layered-4k.webp?v=webp-1"
                           : screen.id === "s06"
-                            ? "/assets/maps/gate/s06-underground-ink-layered-4k.png?v=s06-underground-five-layer-1"
-                          : `/assets/maps/gate/region-sketch/underground/screens/${screen.id}.png?v=hidden-region-s07-return-1`
+                            ? "/assets/maps/gate/s06-underground-ink-layered-4k.webp?v=webp-1"
+                          : `/assets/maps/gate/region-sketch/underground/screens/${screen.id}.webp?v=webp-1`
                         : screen.id === "s03"
-                          ? "/assets/maps/gate/s03-ink-background-layered-seam-v2-4k.png"
+                          ? "/assets/maps/gate/s03-ink-background-layered-4k.webp?v=webp-1"
                           : screen.id === "s04"
-                            ? "/assets/maps/gate/s04-ink-background-layered-4k.png?v=seam-ground-4"
+                            ? "/assets/maps/gate/s04-ink-background-layered-4k.webp?v=webp-1"
                             : screen.id === "s05"
-                              ? "/assets/maps/gate/s05-ink-background-layered-4k.png?v=natural-floor-collision-6"
+                              ? "/assets/maps/gate/s05-ink-background-layered-4k.webp?v=webp-1"
                               : screen.id === "s06"
-                                ? "/assets/maps/gate/s06-ink-background-layered-4k.png?v=s06-surface-five-layer-1"
+                                ? "/assets/maps/gate/s06-ink-background-layered-4k.webp?v=webp-1"
                                 : screen.id === "s07"
-                                  ? "/assets/maps/gate/s07-ink-background-grounded-4k.png?v=land-god-shrine-1"
+                                  ? "/assets/maps/gate/s07-ink-background-layered-4k.webp?v=webp-1"
                                   : screen.id === "s08"
-                                    ? "/assets/maps/gate/s08-ink-background-layered-4k.png?v=s08-flat-y300"
+                                    ? "/assets/maps/gate/s08-ink-background-layered-4k.webp?v=webp-1"
                                     : screen.id === "s09"
-                                      ? "/assets/maps/gate/s09-ink-background-layered-4k.png?v=s09-entry-y300"
+                                      ? "/assets/maps/gate/s09-ink-background-layered-4k.webp?v=webp-1"
                                       : screen.id === "s10"
-                                        ? "/assets/maps/gate/s10-ink-background-layered-v2-4k.png"
+                                        ? "/assets/maps/gate/s10-ink-background-layered-4k.webp?v=webp-1"
                                         : screen.id === "s11"
-                                          ? "/assets/maps/gate/s11-ink-background-layered-4k.png?v=s11-five-layer-1"
+                                          ? "/assets/maps/gate/s11-ink-background-layered-4k.webp?v=webp-1"
                                           : screen.id === "s12"
-                                            ? "/assets/maps/gate/s12-ink-background-layered-4k.png?v=s12-five-layer-1"
-                            : `/assets/maps/gate/region-sketch/screens/${screen.id}.png?v=hidden-region-1`}
+                                            ? "/assets/maps/gate/s12-ink-background-layered-4k.webp?v=webp-1"
+                            : `/assets/maps/gate/region-sketch/screens/${screen.id}.webp?v=webp-1`}
                       x="0"
                       y="0"
                       width={SOURCE_STAGE.w}

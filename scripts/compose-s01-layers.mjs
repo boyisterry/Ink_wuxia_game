@@ -3,8 +3,8 @@ import sharp from "sharp";
 import { gradeCoolInkBackground } from "./ink-color-grade.mjs";
 
 const root = process.cwd();
-const layersDir = path.join(root, "public/assets/maps/gate/s01/layers");
-const outputDir = path.join(root, "public/assets/maps/gate");
+const layersDir = path.join(root, "local-art-source/editable/maps/gate/s01/layers");
+const outputDir = path.join(root, "local-art-source/runtime-originals/assets/maps/gate");
 const width = 1672;
 const height = 941;
 const neutral = { r: 255, g: 255, b: 255 };

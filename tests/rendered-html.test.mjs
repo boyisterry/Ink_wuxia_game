@@ -153,8 +153,17 @@ test("enemy demo roster honors tier, attack, and asset contracts", async () => {
   assert.equal(DEMO_ENEMIES.bridge_nightmare.tier, "elite");
   assert.equal(
     enemies.reduce((count, enemy) => count + enemy.attacks.length, 0),
-    40,
+    50,
   );
+  for (const enemy of DEMO_ENEMIES_BY_TIER.normal) {
+    assert.deepEqual(
+      enemy.attacks.map((attack) => [attack.kind, attack.weight]),
+      [
+        ["light", 75],
+        ["heavy", 25],
+      ],
+    );
+  }
   assert.deepEqual(
     [
       ...new Set(
@@ -190,10 +199,12 @@ test("enemy demo roster honors tier, attack, and asset contracts", async () => {
     for (const assetPath of assetPaths) {
       const assetUrl = new URL(`../public${assetPath}`, import.meta.url);
       assert.equal(existsSync(assetUrl), true, `${assetPath} must exist`);
-      assert.deepEqual(
-        [...readFileSync(assetUrl).subarray(0, 8)],
-        [137, 80, 78, 71, 13, 10, 26, 10],
-        `${assetPath} must be a PNG`,
+      const header = readFileSync(assetUrl).subarray(0, 12);
+      assert.equal(header.subarray(0, 4).toString("ascii"), "RIFF");
+      assert.equal(
+        header.subarray(8, 12).toString("ascii"),
+        "WEBP",
+        `${assetPath} must be a WebP`,
       );
     }
   }

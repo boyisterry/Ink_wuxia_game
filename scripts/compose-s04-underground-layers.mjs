@@ -2,8 +2,9 @@ import path from "node:path";
 import sharp from "sharp";
 
 const root = process.cwd();
-const assetRoot = path.join(root, "public/assets/maps/gate");
-const sceneDir = path.join(assetRoot, "s04-underground");
+const assetRoot = path.join(root, "local-art-source/runtime-originals/assets/maps/gate");
+const artRoot = path.join(root, "local-art-source/editable/maps/gate");
+const sceneDir = path.join(artRoot, "s04-underground");
 const sourceDir = path.join(sceneDir, "source");
 const layersDir = path.join(sceneDir, "layers");
 const transitionDir = path.join(assetRoot, "s04/transition");
@@ -99,7 +100,7 @@ const effects = await sharp(Buffer.from(`
 </svg>`)).png().toBuffer();
 await sharp(effects).toFile(path.join(layersDir, "40-effects.png"));
 
-const surfaceFoundationPath = path.join(assetRoot, "s04/layers/50-foundation.png");
+const surfaceFoundationPath = path.join(artRoot, "s04/layers/50-foundation.png");
 const floorTexture = await sharp(surfaceFoundationPath)
   .extract({ left: 0, top: 570, width: 420, height: 371 })
   .png()

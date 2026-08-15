@@ -3,8 +3,9 @@ import sharp from "sharp";
 import { buildMirroredFoundationTexture } from "./ink-foundation-texture.mjs";
 
 const root = process.cwd();
-const assetRoot = path.join(root, "public/assets/maps/gate");
-const sceneDir = path.join(assetRoot, "s12");
+const assetRoot = path.join(root, "local-art-source/runtime-originals/assets/maps/gate");
+const artRoot = path.join(root, "local-art-source/editable/maps/gate");
+const sceneDir = path.join(artRoot, "s12");
 const sourceDir = path.join(sceneDir, "source");
 const layersDir = path.join(sceneDir, "layers");
 const width = 1672;
@@ -49,7 +50,7 @@ const effects = await sharp(Buffer.from(`
 </svg>`)).png().toBuffer();
 await sharp(effects).toFile(path.join(layersDir, "40-effects.png"));
 
-const foundationTexture = await sharp(path.join(assetRoot, "s11/layers/50-foundation.png"))
+const foundationTexture = await sharp(path.join(artRoot, "s11/layers/50-foundation.png"))
   .extract({ left: 1060, top: 590, width: 360, height: 351 }).png().toBuffer();
 const continuousFoundation = await buildMirroredFoundationTexture(foundationTexture, 360, width, 321);
 const foundationCanvas = await blank().composite([{ input: continuousFoundation, left: 0, top: 620 }]).png().toBuffer();

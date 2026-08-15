@@ -3,8 +3,8 @@ import sharp from "sharp";
 import { gradeCoolInkBackground } from "./ink-color-grade.mjs";
 
 const root = process.cwd();
-const layersDir = path.join(root, "public/assets/maps/gate/s02/layers");
-const outputDir = path.join(root, "public/assets/maps/gate");
+const layersDir = path.join(root, "local-art-source/editable/maps/gate/s02/layers");
+const outputDir = path.join(root, "local-art-source/runtime-originals/assets/maps/gate");
 const width = 1672;
 const height = 941;
 const neutral = { r: 255, g: 255, b: 255 };
@@ -294,11 +294,11 @@ await sharp(finalComposite)
   .resize(3840, 2160, { fit: "fill", kernel: sharp.kernel.lanczos3 })
   .png()
   .toFile(path.join(outputDir, "s02-ink-background-layered-4k.png"));
-await sharp(finalComposite).toFile(path.join(outputDir, "s02-ink-background-layered-seam-v2-1672.png"));
+await sharp(finalComposite).toFile(path.join(outputDir, "s02-ink-background-layered-1672.png"));
 await sharp(finalComposite)
   .resize(3840, 2160, { fit: "fill", kernel: sharp.kernel.lanczos3 })
   .png()
-  .toFile(path.join(outputDir, "s02-ink-background-layered-seam-v2-4k.png"));
+  .toFile(path.join(outputDir, "s02-ink-background-layered-4k.png"));
 
 const previewBamboo = await sharp(files.seamBamboo)
   .resize(1244, 700, { fit: "fill", kernel: sharp.kernel.lanczos3 })

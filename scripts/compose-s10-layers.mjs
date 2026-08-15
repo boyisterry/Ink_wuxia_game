@@ -3,8 +3,9 @@ import sharp from "sharp";
 import { buildMirroredFoundationTexture } from "./ink-foundation-texture.mjs";
 
 const root = process.cwd();
-const assetRoot = path.join(root, "public/assets/maps/gate");
-const sceneDir = path.join(assetRoot, "s10");
+const assetRoot = path.join(root, "local-art-source/runtime-originals/assets/maps/gate");
+const artRoot = path.join(root, "local-art-source/editable/maps/gate");
+const sceneDir = path.join(artRoot, "s10");
 const sourceDir = path.join(sceneDir, "source");
 const layersDir = path.join(sceneDir, "layers");
 const width = 1672;
@@ -97,7 +98,7 @@ const effects = await sharp(Buffer.from(`
 </svg>`)).png().toBuffer();
 await sharp(effects).toFile(path.join(layersDir, "40-effects.png"));
 
-const foundationTexture = await sharp(path.join(assetRoot, "s08/layers/50-foundation.png"))
+const foundationTexture = await sharp(path.join(artRoot, "s08/layers/50-foundation.png"))
   .extract({ left: 520, top: 300, width: 360, height: 641 })
   .png().toBuffer();
 const continuousFoundation = await buildMirroredFoundationTexture(foundationTexture, 360, width, 351);
@@ -124,8 +125,8 @@ await sharp(composite).toFile(path.join(assetRoot, "s10-ink-background-layered-1
 await sharp(composite).resize(3840, 2160, { fit: "fill", kernel: sharp.kernel.lanczos3 }).png().toFile(path.join(assetRoot, "s10-ink-background-layered-4k.png"));
 // Keep an immutable revisioned pair for browsers/CDNs that retain the old
 // canonical file despite a query-string change.
-await sharp(composite).toFile(path.join(assetRoot, "s10-ink-background-layered-v2-1672.png"));
-await sharp(composite).resize(3840, 2160, { fit: "fill", kernel: sharp.kernel.lanczos3 }).png().toFile(path.join(assetRoot, "s10-ink-background-layered-v2-4k.png"));
+await sharp(composite).toFile(path.join(assetRoot, "s10-ink-background-layered-1672.png"));
+await sharp(composite).resize(3840, 2160, { fit: "fill", kernel: sharp.kernel.lanczos3 }).png().toFile(path.join(assetRoot, "s10-ink-background-layered-4k.png"));
 await sharp({ create: { width: width * 2, height, channels: 3, background: { r: 198, g: 200, b: 202 } } }).composite([
   { input: path.join(assetRoot, "s09-ink-background-layered-1672.png"), left: 0, top: 0 }, { input: composite, left: width, top: 0 },
 ]).png().toFile(path.join(root, "tmp", "s09-s10-surface-seam-preview.png"));

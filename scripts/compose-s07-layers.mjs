@@ -4,20 +4,21 @@ import { gradeCoolInkBackground } from "./ink-color-grade.mjs";
 import { buildMirroredFoundationTexture } from "./ink-foundation-texture.mjs";
 
 const root = process.cwd();
-const assetRoot = path.join(root, "public/assets/maps/gate");
-const s07Dir = path.join(assetRoot, "s07");
+const assetRoot = path.join(root, "local-art-source/runtime-originals/assets/maps/gate");
+const artRoot = path.join(root, "local-art-source/editable/maps/gate");
+const s07Dir = path.join(artRoot, "s07");
 const layersDir = path.join(s07Dir, "layers");
 const width = 1672;
 const height = 941;
 
 const files = {
   s06: path.join(assetRoot, "s06-ink-background-layered-1672.png"),
-  s06Background: path.join(assetRoot, "s06/layers/00-background-mountains.png"),
-  s06Foundation: path.join(assetRoot, "s06/layers/50-foundation.png"),
+  s06Background: path.join(artRoot, "s06/layers/00-background-mountains.png"),
+  s06Foundation: path.join(artRoot, "s06/layers/50-foundation.png"),
   backgroundSource: path.join(s07Dir, "source/00-background-generated.png"),
   architectureSource: path.join(s07Dir, "source/20-background-architecture-supported-v3.png"),
   decorationSource: path.join(s07Dir, "source/30-decoration-keyed.png"),
-  s08Decoration: path.join(assetRoot, "s08/layers/30-decoration.png"),
+  s08Decoration: path.join(artRoot, "s08/layers/30-decoration.png"),
   shrine: path.join(assetRoot, "shared/save-shrine-v1.png"),
 };
 
@@ -183,8 +184,8 @@ const composite = await sharp(background).composite([
 ]).png().toBuffer();
 await sharp(composite).toFile(path.join(assetRoot, "s07-ink-background-layered-1672.png"));
 await sharp(composite).resize(3840, 2160, { fit: "fill", kernel: sharp.kernel.lanczos3 }).png().toFile(path.join(assetRoot, "s07-ink-background-layered-4k.png"));
-await sharp(composite).toFile(path.join(assetRoot, "s07-ink-background-grounded-1672.png"));
-await sharp(composite).resize(3840, 2160, { fit: "fill", kernel: sharp.kernel.lanczos3 }).png().toFile(path.join(assetRoot, "s07-ink-background-grounded-4k.png"));
+await sharp(composite).toFile(path.join(assetRoot, "s07-ink-background-layered-1672.png"));
+await sharp(composite).resize(3840, 2160, { fit: "fill", kernel: sharp.kernel.lanczos3 }).png().toFile(path.join(assetRoot, "s07-ink-background-layered-4k.png"));
 await sharp({ create: { width: width * 2, height, channels: 3, background: { r: 198, g: 200, b: 202 } } })
   .composite([{ input: files.s06, left: 0, top: 0 }, { input: composite, left: width, top: 0 }])
   .png()

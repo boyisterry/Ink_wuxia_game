@@ -2019,7 +2019,7 @@ export default function MapDemo() {
                   }}
                 >
                   <span>{PLAYER_METRICS.height}u</span>
-                  <img src="/assets/player.png" alt="玩家物理尺寸参照" />
+                  <img src="/assets/player.webp" alt="玩家物理尺寸参照" />
                 </div>
                 <div
                   className="camera-frame-guide"

@@ -4,8 +4,9 @@ import { gradeCoolInkBackground } from "./ink-color-grade.mjs";
 import { buildMirroredFoundationTexture } from "./ink-foundation-texture.mjs";
 
 const root = process.cwd();
-const assetRoot = path.join(root, "public/assets/maps/gate");
-const s03Dir = path.join(assetRoot, "s03");
+const assetRoot = path.join(root, "local-art-source/runtime-originals/assets/maps/gate");
+const artRoot = path.join(root, "local-art-source/editable/maps/gate");
+const s03Dir = path.join(artRoot, "s03");
 const layersDir = path.join(s03Dir, "layers");
 const width = 1672;
 const height = 941;
@@ -13,10 +14,10 @@ const height = 941;
 const files = {
   s02: path.join(assetRoot, "s02-ink-background-layered-1672.png"),
   s01: path.join(assetRoot, "s01-ink-background-layered-1672.png"),
-  s02Background: path.join(assetRoot, "s02/layers/00-background-mountains.png"),
+  s02Background: path.join(artRoot, "s02/layers/00-background-mountains.png"),
   sharedTransition: path.join(assetRoot, "shared/s02-s03-stone-culvert-world.png"),
   sharedBamboo: path.join(assetRoot, "shared/s02-s03-seam-bamboo-world.png"),
-  s02Foundation: path.join(assetRoot, "s02/layers/50-foundation.png"),
+  s02Foundation: path.join(artRoot, "s02/layers/50-foundation.png"),
   backgroundSource: path.join(s03Dir, "source/00-background-generated.png"),
   architectureKeyed: path.join(layersDir, "20-background-architecture-keyed.png"),
   decorationKeyed: path.join(layersDir, "30-decoration-keyed.png"),
@@ -169,8 +170,8 @@ const composite = await sharp(background)
   .toBuffer();
 await sharp(composite).toFile(path.join(assetRoot, "s03-ink-background-layered-1672.png"));
 await sharp(composite).resize(3840, 2160, { fit: "fill", kernel: sharp.kernel.lanczos3 }).png().toFile(path.join(assetRoot, "s03-ink-background-layered-4k.png"));
-await sharp(composite).toFile(path.join(assetRoot, "s03-ink-background-layered-seam-v2-1672.png"));
-await sharp(composite).resize(3840, 2160, { fit: "fill", kernel: sharp.kernel.lanczos3 }).png().toFile(path.join(assetRoot, "s03-ink-background-layered-seam-v2-4k.png"));
+await sharp(composite).toFile(path.join(assetRoot, "s03-ink-background-layered-1672.png"));
+await sharp(composite).resize(3840, 2160, { fit: "fill", kernel: sharp.kernel.lanczos3 }).png().toFile(path.join(assetRoot, "s03-ink-background-layered-4k.png"));
 
 await sharp({ create: { width: width * 2, height, channels: 3, background: { r: 239, g: 233, b: 220 } } })
   .composite([

@@ -50,5 +50,8 @@ next-env.d.ts
 /outputs/
 /work/
 
+# Local lossless/editable artwork. Runtime-optimized derivatives belong in public/.
+/local-art-source/
+
 # typescript build info
 *.tsbuildinfo

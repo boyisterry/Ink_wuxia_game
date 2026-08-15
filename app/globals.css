@@ -279,7 +279,7 @@ button {
   overflow: hidden;
   background-color: var(--paper-deep);
   background-image:
-    linear-gradient(#f3efe408, #f3efe408), url("/assets/stage-background.png");
+    linear-gradient(#f3efe408, #f3efe408), url("/assets/stage-background.webp");
   background-repeat: no-repeat;
   /* Stretch-fill maps image % to stage % so the bridge stays under feet on
      every aspect ratio. Frame aspect is capped above to limit distortion. */
@@ -304,6 +304,18 @@ button {
   object-fit: fill;
   user-select: none;
   pointer-events: none;
+}
+.gate-screen {
+  position: relative;
+  flex: none;
+  height: 100%;
+  overflow: hidden;
+  background: #d7d1c3;
+}
+.gate-screen > img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
 }
 .gate-stage:after {
   content: "";
@@ -1244,7 +1256,7 @@ kbd {
   inset: 5% 3%;
   z-index: -1;
   opacity: 0;
-  background: url("/assets/player.png") center/contain no-repeat;
+  background: url("/assets/player.webp") center/contain no-repeat;
   filter: contrast(1.8) brightness(0.3) blur(2px);
   transform: scaleX(var(--face));
 }

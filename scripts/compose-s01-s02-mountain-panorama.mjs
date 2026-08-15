@@ -2,10 +2,10 @@ import path from "node:path";
 import sharp from "sharp";
 
 const root = process.cwd();
-const sourceDir = path.join(root, "public/assets/maps/gate/shared/source");
-const sharedDir = path.join(root, "public/assets/maps/gate/shared");
-const s01Layers = path.join(root, "public/assets/maps/gate/s01/layers");
-const s02Layers = path.join(root, "public/assets/maps/gate/s02/layers");
+const sourceDir = path.join(root, "local-art-source/editable/maps/gate/shared/source");
+const sharedDir = path.join(root, "local-art-source/runtime-originals/assets/maps/gate/shared");
+const s01Layers = path.join(root, "local-art-source/editable/maps/gate/s01/layers");
+const s02Layers = path.join(root, "local-art-source/editable/maps/gate/s02/layers");
 const screenWidth = 1672;
 const height = 941;
 const overlap = 256;

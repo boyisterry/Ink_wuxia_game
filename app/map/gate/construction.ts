@@ -150,7 +150,7 @@ export const GATE_RETURN_TRANSITIONS: readonly ConstructionReturnTransitionSpec[
   note: "S07西侧永久梯井；从地下单向上爬，穿过单向井盖切回地表摄影机，出口正对复活锚点。",
 }] as const;
 
-/** Every Gate-region shrine uses shared/save-shrine-v1.png in Layer 3. */
+/** Every Gate-region shrine uses the local lossless save-shrine-v1.png source in Layer 3. */
 export const GATE_SHRINE_PLACEMENTS: readonly GateShrinePlacementSpec[] = [
   { id: "SH01", screen: 0, x: 315, y: 672, w: 50, h: 48, route: "surface", role: "save", label: "破庙土地神龛" },
   { id: "SH02", screen: 3, x: 1315, y: 602, w: 50, h: 48, route: "underground", role: "offering", label: "地下土地神龛" },

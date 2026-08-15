@@ -2,7 +2,7 @@ import path from "node:path";
 import sharp from "sharp";
 
 const root = process.cwd();
-const sharedDir = path.join(root, "public/assets/maps/gate/shared");
+const sharedDir = path.join(root, "local-art-source/runtime-originals/assets/maps/gate/shared");
 const source = path.join(sharedDir, "s02-s03-stone-culvert.png");
 const output = path.join(sharedDir, "s02-s03-stone-culvert-world.png");
 

@@ -20,6 +20,7 @@ if [[ "${SITES_REQUIRE_HOSTING:-0}" == "1" && ! -f "${hosting}" ]]; then
 fi
 
 echo "Running bounded vinext build..."
+node "${script_dir}/verify-runtime-assets.mjs"
 node "${script_dir}/run-with-timeout.mjs" \
   "${SITES_BUILD_TIMEOUT:-3m}" \
   "${SITES_BUILD_KILL_AFTER:-10s}" \

@@ -2,8 +2,9 @@ import path from "node:path";
 import sharp from "sharp";
 
 const root = process.cwd();
-const assetRoot = path.join(root, "public/assets/maps/gate");
-const sceneDir = path.join(assetRoot, "s05-underground");
+const assetRoot = path.join(root, "local-art-source/runtime-originals/assets/maps/gate");
+const artRoot = path.join(root, "local-art-source/editable/maps/gate");
+const sceneDir = path.join(artRoot, "s05-underground");
 const sourceDir = path.join(sceneDir, "source");
 const layersDir = path.join(sceneDir, "layers");
 const width = 1672;
@@ -37,7 +38,7 @@ const backgroundBase = await sharp(path.join(sourceDir, "00-background-generated
   .png()
   .toBuffer();
 const seamWidth = 420;
-const s04BackgroundStrip = await sharp(path.join(assetRoot, "s04-underground/layers/00-background-cavern.png"))
+const s04BackgroundStrip = await sharp(path.join(artRoot, "s04-underground/layers/00-background-cavern.png"))
   .extract({ left: width - seamWidth, top: 0, width: seamWidth, height })
   .flop()
   .png()
@@ -57,7 +58,7 @@ const architectureBase = await transparentCanvas().composite([{
   input: architectureGenerated, left: 0, top: 370,
 }]).png().toBuffer();
 const architectureSeamWidth = 420;
-const s04ArchitectureStrip = await sharp(path.join(assetRoot, "s04-underground/layers/20-background-architecture.png"))
+const s04ArchitectureStrip = await sharp(path.join(artRoot, "s04-underground/layers/20-background-architecture.png"))
   .extract({ left: width - architectureSeamWidth, top: 0, width: architectureSeamWidth, height })
   .flop()
   .png()
@@ -106,7 +107,7 @@ const decorationBase = await transparentCanvas().composite([
   { input: clearEastPlatform, left: 965, top: 610, blend: "dest-out" },
 ]).png().toBuffer();
 const decorationSeamWidth = 180;
-const s04DecorationStrip = await sharp(path.join(assetRoot, "s04-underground/layers/30-decoration.png"))
+const s04DecorationStrip = await sharp(path.join(artRoot, "s04-underground/layers/30-decoration.png"))
   .extract({ left: width - decorationSeamWidth, top: 0, width: decorationSeamWidth, height })
   .flop()
   .png()
@@ -135,7 +136,7 @@ const effectsBase = await sharp(Buffer.from(`
   </g>
 </svg>`)).png().toBuffer();
 const effectsSeamWidth = 240;
-const s04EffectsStrip = await sharp(path.join(assetRoot, "s04-underground/layers/40-effects.png"))
+const s04EffectsStrip = await sharp(path.join(artRoot, "s04-underground/layers/40-effects.png"))
   .extract({ left: width - effectsSeamWidth, top: 0, width: effectsSeamWidth, height })
   .flop()
   .png()
@@ -145,7 +146,7 @@ const effects = await sharp(effectsBase).composite([{
 }]).png().toBuffer();
 await sharp(effects).toFile(path.join(layersDir, "40-effects.png"));
 
-const floorTexture = await sharp(path.join(assetRoot, "s04-underground/layers/50-foundation.png"))
+const floorTexture = await sharp(path.join(artRoot, "s04-underground/layers/50-foundation.png"))
   // Sample within one continuous S04 foundation segment; avoid its segment
   // boundaries so horizontal scaling cannot magnify a pale weld line.
   .extract({ left: 960, top: 780, width: 360, height: 161 })
@@ -185,7 +186,7 @@ const foundationBase = await transparentCanvas().composite([
   { input: collisionCaps, left: 0, top: 0 },
 ]).png().toBuffer();
 const foundationSeamWidth = 420;
-const s04FoundationStrip = await sharp(path.join(assetRoot, "s04-underground/layers/50-foundation.png"))
+const s04FoundationStrip = await sharp(path.join(artRoot, "s04-underground/layers/50-foundation.png"))
   .extract({ left: width - foundationSeamWidth, top: 0, width: foundationSeamWidth, height })
   .flop()
   .png()

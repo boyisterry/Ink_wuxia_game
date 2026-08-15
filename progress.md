@@ -93,3 +93,48 @@ Original prompt: 好，你来增加一个纯美术预览开关
 - Visual QA: inspected matching Gate idle, 92% charge, full-charge release-impact, and post-release movement screenshots. The visible body now matches the normal actor scale, the feet/impact meet the ground art, and the player stays `grounded` with `footY=groundY=720` throughout.
 - Control regression: after release, movement advanced from world X120 to X256; heavy state returned to idle, all input locks cleared, and no browser errors appeared.
 - TODO: none for this fix.
+
+## 2026-08-12 · Project footprint reduction phase 1
+
+- Removed regenerable `dist/` and `.sites-runtime/` output/cache directories; `node_modules/` is retained so local development remains immediately runnable.
+- Moved 254 MB of editable map layers, generated source images, enemy chroma sources, and documentation portraits from `public/` to `art-source/`. Composition scripts now read source material there and continue writing runtime composites to `public/assets/`.
+- Canonicalized S02, S03, S07, and S10 runtime filenames and removed their byte-identical legacy variants, plus the duplicate shrine composite. This removes about 45 MB of duplicate production assets.
+- Deployment-facing `public/` fell from 501 MB to 204 MB (about 59% smaller) without reducing visual resolution or changing runtime rendering.
+- Validation: every composition `.mjs` passes `node --check`; `npm run build` passes; required browser-client checks passed for both the playable S01 scene and the S09 construction view, with no captured browser errors.
+- Test status: 4 of 5 tests pass. The remaining failure is the pre-existing world-map validation warning (`76` rooms and two large-drop warnings) rather than an asset-cleanup regression.
+- TODO for phase 2: convert large runtime PNG composites/sprites to WebP or AVIF, then window/lazy-load map screens and character actions to reduce initial network and decode cost.
+
+## 2026-08-12 · Project footprint reduction phase 2
+
+- Consolidated all editable and lossless original art under ignored `local-art-source/`: `editable/` contains layers/chroma/generated sources and `runtime-originals/assets/` contains lossless deployment masters. Git ignores the complete directory.
+- Added a reproducible WebP pipeline: `npm run assets:optimize` generates only stale derivatives; `npm run assets:verify` validates all required assets, decodes every WebP, rejects raw PNG/JPEG in `public/assets/`, and now runs before every production build.
+- Converted 86 lossless runtime images from 183.97 MiB PNG to 18.26 MiB WebP (90.1% smaller), preserving source dimensions and alpha. Including existing animation sheets, `public/assets/` now contains 100 verified WebP files totaling 24.62 MiB.
+- Deployment-facing `public/` fell from 204 MB after phase 1 to 25 MB; the production `dist/` fell from roughly 241 MB to 30 MB.
+- Runtime loading: Gate now mounts only the current screen plus a two-screen buffer on each side instead of all twelve map images. Only five core character images block entry; the remaining action sheets preload in the background.
+- Visual QA: walked from S01 to S03 across dynamically mounted WebP screens; checked focused S09 4K construction art; checked Bridge Nightmare transparency and the active ink-claw effect. State output matched all screenshots and no browser/resource errors were captured.
+- Verification: production build passes and the enemy asset contract test now validates RIFF/WEBP headers. Test suite returns to 4/5 passing; only the pre-existing world-map validation warning remains (76 rooms and two large-drop warnings).
+- TODO: keep `local-art-source/` backed up outside Git. No further asset migration is required for normal builds.
+
+## 2026-08-13 · Basic enemy two-skill contract
+
+- Current request: every basic enemy must have exactly one normal attack skill (which may contain a combo) and one heavy attack skill.
+- Implemented: all 10 basic enemies now expose exactly two attacks: a 75% common normal attack and a 25% low-frequency heavy attack. Movement, guarding, repositioning, enraging, and hit reactions remain behavior states rather than extra skills.
+- Added: 10 distinct heavy attacks with 0.90–1.10s telegraphs, 46–58 damage, longer recovery/cooldowns, red danger signals, and range-specific counterplay.
+- Updated: runtime validation now enforces the two-skill composition and 50 total arena attacks; both enemy design documents use the same rule and names.
+- Added: a production-ready animation-generation prompt under every one of the 20 basic-enemy skills, with action-specific timing and poses plus shared constraints for identity, scale, grounding, root motion, chroma background, and separate gameplay VFX.
+- Browser QA: all 10 basic enemies show exactly two skills in the picker with `light/75%` followed by `heavy/25%`; names, markers, and order match runtime data.
+- Combat QA: forced and visually inspected Bamboo Blade's melee heavy, Rooftop Bow's projectile heavy, and Lantern Mage's ground-target heavy through windup, active VFX/damage, recovery, and return to idle. Damage was 48, 50, and 54 respectively; no browser errors occurred.
+- Validation: production build passes; the enemy roster contract test passes and now asserts the two-skill composition. The suite remains 4/5 because of the pre-existing world-map warning (76 rooms versus the historical 77-room assertion and two existing large-drop warnings).
+- Prompt refinement: expanded all 20 basic-enemy skill prompts into numbered fixed-camera storyboards with exact time ranges matching windup/active/follow-through/recovery, runtime movement descriptions, complete generation copy, and per-skill constraints.
+- Locomotion prompts: added one loopable 24fps movement storyboard for each of the 10 basic enemies, including runtime speed, root-motion handling, body mechanics, and loop constraints.
+- Hit-reaction prompts: added one timed hit-reaction storyboard for each basic enemy, including impact direction, recoil/knockback handoff to runtime logic, recovery pose, and anatomy/equipment constraints.
+- Documentation contract check: 10 enemy prompt groups, 40 animation entries, and exactly 40 each of storyboard, movement, complete-prompt, and constraint fields.
+- TODO: generate and integrate the 10 movement loops, 10 hit reactions, and 20 skill action sheets as art becomes available.
+
+## 2026-08-15 · Consolidated pre-push verification
+
+- Reviewed the complete dirty worktree before publication: runtime PNG/JPEG assets are replaced by verified WebP derivatives, editable/lossless art remains under ignored `local-art-source/`, and the basic-enemy two-skill/prompt documentation changes are included.
+- Verification: `npm run build` passes and validates 100 WebP runtime assets totaling 24.62 MiB; `npm run lint` completes with zero errors and six existing `no-img-element` warnings.
+- Test suite remains 4/5: the sole failure is the documented world-map validation warning (`76` rooms and two existing large-drop warnings), not an asset or enemy-combat regression.
+- Required browser-client QA: entered Gate gameplay, moved and jumped from S01 into S02 with `jumpPeak=181`; entered the enemy arena, exercised movement, normal attack, charged heavy attack, and observed the Bridge Nightmare heavy telegraph. State output matched screenshots and no console/page errors were captured.
+- Local Bamboo Blade storyboard and failed Dreamina-generation audit files remain ignored and are not part of the Git publication.

@@ -14,7 +14,10 @@
 }
 html,
 body {
+  width: 100%;
+  height: 100%;
   min-height: 100%;
+  overflow: hidden;
 }
 body {
   margin: 0;
@@ -31,14 +34,21 @@ button {
   -webkit-tap-highlight-color: transparent;
 }
 .game-shell {
-  min-height: 100svh;
+  width: 100%;
+  height: 100svh;
+  min-height: 0;
   display: grid;
   place-items: center;
   padding: 18px;
+  overflow: hidden;
   position: relative;
   isolation: isolate;
   background:
     radial-gradient(circle at 50% -20%, #ffffff22, transparent 42%), #171511;
+}
+.game-viewport {
+  position: relative;
+  flex: none;
 }
 .paper-noise {
   position: fixed;
@@ -61,19 +71,15 @@ button {
     );
 }
 .game-frame {
-  /* Cap width from the playable stage height so the stretched stage art
-     stays near its native aspect instead of becoming ultra-wide. */
-  --frame-chrome: 170px; /* hud + control strip */
-  --frame-max-aspect: 1.85;
-  --frame-height: min(940px, calc(100svh - 36px));
-  width: min(
-    1500px,
-    100%,
-    calc((var(--frame-height) - var(--frame-chrome)) * var(--frame-max-aspect))
-  );
-  height: var(--frame-height);
-  min-height: min(680px, calc(100svh - 36px));
+  /* The complete game is authored on one design canvas. The viewport wrapper
+     applies one shared scale factor, so neither large nor small screens can
+     stretch the artwork, actors, HUD, or controls independently. */
+  width: 1500px;
+  height: 940px;
+  min-height: 0;
   position: relative;
+  transform-origin: top left;
+  will-change: transform;
   display: grid;
   grid-template-rows: 106px minmax(0, 1fr) 64px;
   overflow: hidden;
@@ -900,14 +906,6 @@ kbd {
     padding: 0;
   }
   .game-frame {
-    --frame-chrome: 154px;
-    --frame-height: 100svh;
-    width: min(
-      100%,
-      calc((var(--frame-height) - var(--frame-chrome)) * var(--frame-max-aspect))
-    );
-    height: var(--frame-height);
-    min-height: min(620px, 100svh);
     border: 0;
   }
   .hud {
@@ -1571,7 +1569,7 @@ kbd {
 .player.combo-2 .attack-sprite {
   background-image: url("/assets/player-attack-2.webp");
   background-size: 2000% 100%;
-  animation: player-attack-two-sprite 0.46s steps(19, end) 1 both;
+  animation: player-attack-two-sprite 0.24s steps(7, end) 1 both;
 }
 .player.combo-1 .slash,
 .player.combo-2 .slash {
@@ -1586,8 +1584,9 @@ kbd {
   }
 }
 @keyframes player-attack-two-sprite {
+  /* Frames 0-11 repeat the first strike; frame 12 begins the follow-up. */
   from {
-    background-position: 0 0;
+    background-position: 63.1579% 0;
   }
   to {
     background-position: 100% 0;

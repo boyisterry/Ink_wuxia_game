@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import {
   DEMO_ENEMIES,
   DEMO_ENEMIES_BY_TIER,
@@ -143,8 +150,8 @@ const ROLL_MOVE_PER_FRAME = 0.76;
 const LIGHT_ATTACK_ONE_HIT_MS = 205;
 const LIGHT_ATTACK_COMBO_OPENS_MS = 330;
 const LIGHT_ATTACK_COMBO_GRACE_MS = 720;
-const LIGHT_ATTACK_TWO_HIT_MS = 185;
-const LIGHT_ATTACK_TWO_DURATION_MS = 460;
+const LIGHT_ATTACK_TWO_HIT_MS = 105;
+const LIGHT_ATTACK_TWO_DURATION_MS = 240;
 const HEAVY_SPIRIT_COST = 20;
 const HEAVY_MIN_DAMAGE = 54;
 const HEAVY_MAX_DAMAGE = 86;
@@ -154,6 +161,7 @@ const HEAVY_FULL_CHARGE_MS = 1100;
 const HEAVY_AUTO_RELEASE_MS = 1500;
 const HEAVY_RELEASE_HIT_MS = 420;
 const HEAVY_RELEASE_DURATION_MS = 900;
+const GAME_FRAME_SIZE = { width: 1500, height: 940 } as const;
 const ACTION_ASSET_URLS = [
   "/assets/player.webp",
   "/assets/player-idle.webp",
@@ -379,9 +387,11 @@ export default function Home() {
   const [loadedActionAssets, setLoadedActionAssets] = useState(0);
   const [actionAssetsReady, setActionAssetsReady] = useState(false);
   const [actionAssetsFailed, setActionAssetsFailed] = useState(false);
+  const [gameScale, setGameScale] = useState(1);
   const selectedEnemy = DEMO_ENEMIES[selectedEnemyId];
 
   const keys = useRef(new Set<string>());
+  const gameShellRef = useRef<HTMLElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const xRef = useRef(18);
   const yRef = useRef(0);
@@ -469,6 +479,38 @@ export default function Home() {
   useEffect(() => {
     chapterRef.current = chapter;
   }, [chapter]);
+
+  useLayoutEffect(() => {
+    const shell = gameShellRef.current;
+    if (!shell) return;
+
+    const measure = () => {
+      const style = window.getComputedStyle(shell);
+      const availableWidth =
+        shell.clientWidth -
+        Number.parseFloat(style.paddingLeft) -
+        Number.parseFloat(style.paddingRight);
+      const availableHeight =
+        shell.clientHeight -
+        Number.parseFloat(style.paddingTop) -
+        Number.parseFloat(style.paddingBottom);
+      const nextScale = Math.max(
+        0.01,
+        Math.min(
+          availableWidth / GAME_FRAME_SIZE.width,
+          availableHeight / GAME_FRAME_SIZE.height,
+        ),
+      );
+      setGameScale((current) =>
+        Math.abs(current - nextScale) < 0.0005 ? current : nextScale,
+      );
+    };
+
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(shell);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const stage = stageRef.current;
@@ -1081,7 +1123,8 @@ export default function Home() {
       comboWindowOpenRef.current = false;
       chainAttackRef.current = null;
       currentAttackStep.current = 2;
-      attackUntilRef.current = performance.now() + 800;
+      attackUntilRef.current =
+        performance.now() + LIGHT_ATTACK_TWO_DURATION_MS + 300;
       setAttackStep(2);
       spendSpirit(4);
       later(() => {
@@ -1865,9 +1908,20 @@ export default function Home() {
     : "";
   const intentKindLabel = currentEnemyAttack?.kind === "heavy" ? "重" : "轻";
   return (
-    <main className="game-shell">
+    <main ref={gameShellRef} className="game-shell">
       <div className="paper-noise" aria-hidden="true" />
-      <section className="game-frame" aria-label="墨境行者游戏区域">
+      <div
+        className="game-viewport"
+        style={{
+          width: `${GAME_FRAME_SIZE.width * gameScale}px`,
+          height: `${GAME_FRAME_SIZE.height * gameScale}px`,
+        }}
+      >
+        <section
+          className="game-frame"
+          aria-label="墨境行者游戏区域"
+          style={{ transform: `scale(${gameScale})` }}
+        >
         <header className="hud">
           <div className="brand-mark" aria-label="墨境行者">
             <span>墨境</span>
@@ -2356,7 +2410,8 @@ export default function Home() {
             </button>
           </div>
         </footer>
-      </section>
+        </section>
+      </div>
     </main>
   );
 }
